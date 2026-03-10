@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+Source: dde-shell-weather-plugin
+Section: utils
+Priority: optional
+Maintainer: Deepin Packages Builder <packages@deepin.org>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               pkg-config,
+               qt6-base-dev,
+               qt6-base-dev-tools,
+               qt6-declarative-dev,
+               qt6-positioning-dev,
+               qt6-tools-dev,
+               qt6-tools-dev-tools,
+               libdtk6core-dev,
+               libdtk6gui-dev,
+               libdtk6widget-dev,
+               libdde-shell-dev
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/hualet/dde-shell-weather-plugin
+
+Package: dde-shell-weather-plugin
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         dde-shell
+Description: Weather applet plugin for DDE Shell
+ DDE Shell weather plugin for the taskbar that shows current conditions,
+ temperature ranges, and animated weather icons powered by Open-Meteo.

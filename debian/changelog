@@ -1,0 +1,6 @@
+dde-shell-weather-plugin (1.0.0-1) unstable; urgency=medium
+
+  * Initial release.
+  * Add Debian packaging metadata and CI build workflow.
+
+ -- Deepin Packages Builder <packages@deepin.org>  Tue, 10 Mar 2026 12:00:00 +0800

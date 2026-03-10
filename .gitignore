@@ -56,6 +56,8 @@ compile_commands.json
 # Build directory
 build/
 cmake-build-*/
+obj-*/
+.pkgbuild/
 .idea/
 .vscode/
 
@@ -66,3 +68,5 @@ Thumbs.db
 # Package files
 *.tar.gz
 *.deb
+*.buildinfo
+*.changes

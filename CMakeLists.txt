@@ -47,8 +47,22 @@ if(Qt6Location_FOUND)
     target_link_libraries(ds-weather-applet PRIVATE Qt6::Location)
 endif()
 
-# Install plugin package using dde-shell macro
-ds_install_package(
-    PACKAGE org.deepin.ds.weather
+set(DS_WEATHER_PACKAGE_ID org.deepin.ds.weather)
+
+# Build the dde-shell package tree, but exclude VCS metadata from installation.
+ds_build_package(
+    PACKAGE ${DS_WEATHER_PACKAGE_ID}
     TARGET ds-weather-applet
+)
+
+install(
+    DIRECTORY ${PROJECT_BINARY_DIR}/packages/${DS_WEATHER_PACKAGE_ID}/
+    DESTINATION ${DDE_SHELL_PACKAGE_INSTALL_DIR}/${DS_WEATHER_PACKAGE_ID}
+    PATTERN ".git" EXCLUDE
+    PATTERN ".gitignore" EXCLUDE
+)
+
+install(
+    TARGETS ds-weather-applet
+    DESTINATION ${DDE_SHELL_PLUGIN_INSTALL_DIR}/
 )

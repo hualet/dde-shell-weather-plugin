@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Build Debian Package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    container:
+      image: docker.io/hualet/deepin:25-builder
+      options: --privileged
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            build-essential \
+            debhelper \
+            dpkg-dev \
+            cmake \
+            pkg-config \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-declarative-dev \
+            qt6-positioning-dev \
+            qt6-tools-dev \
+            qt6-tools-dev-tools \
+            libdtk6core-dev \
+            libdtk6gui-dev \
+            libdtk6widget-dev \
+            libdde-shell-dev
+
+      - name: Build Debian package
+        run: |
+          dpkg-buildpackage -us -uc -b
+          mkdir -p output
+          shopt -s nullglob
+          cp ../*.deb ../*.changes ../*.buildinfo output/
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-packages
+          path: output/*
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
