@@ -18,14 +18,14 @@ find_package(DDEShell REQUIRED)
 
 # Create plugin library
 add_library(ds-weather-applet SHARED
-    weatherapplet.h
-    weatherapplet.cpp
-    weatherprovider.h
-    weatherprovider.cpp
+    src/weatherapplet.h
+    src/weatherapplet.cpp
+    src/weatherprovider.h
+    src/weatherprovider.cpp
 )
 
 target_include_directories(ds-weather-applet PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_link_libraries(ds-weather-applet PRIVATE

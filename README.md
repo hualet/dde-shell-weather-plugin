@@ -84,15 +84,17 @@ dpkg-buildpackage -us -uc -b
 
 ```
 dde-shell-weather-plugin/
-├── CMakeLists.txt          # 构建配置
-├── weatherapplet.h/cpp     # 插件主类
-├── weatherprovider.h/cpp   # 天气数据提供者
-└── package/                # QML 界面资源
-    ├── metadata.json       # 插件元数据
-    ├── main.qml           # 主界面
-    ├── WeatherIcon.qml    # 天气图标组件
-    ├── ParticleWeather.qml # 粒子动画组件
-    └── qmldir             # QML 模块定义
+├── CMakeLists.txt                   # 构建配置
+├── src/                             # C++ 源码
+│   ├── weatherapplet.h/cpp          # 插件主类
+│   └── weatherprovider.h/cpp        # 天气数据提供者
+├── package/                         # QML 界面资源
+│   ├── metadata.json                # 插件元数据
+│   ├── main.qml                     # 主界面
+│   ├── WeatherIcon.qml              # 天气图标组件
+│   └── icons/                       # 天气图标资源
+├── docs/                            # 设计和候选服务文档
+└── debian/                          # Debian/Deepin 打包配置
 ```
 
 ## API 使用
