@@ -32,6 +32,7 @@
 ### 可选依赖
 
 - Qt6 Positioning - 用于自动定位功能
+- libqt6positioning6-plugins - Qt Positioning 运行时插件，自动定位依赖它加载 GeoClue 后端
 
 ## 构建和安装
 
@@ -74,6 +75,42 @@ dpkg-buildpackage -us -uc -b
 
 构建完成后，`.deb`、`.changes`、`.buildinfo` 会出现在项目上一级目录。
 
+生成的 `dde-shell-weather-plugin` Debian 包会额外安装：
+
+- `/etc/geoclue/conf.d/90-dde-shell.conf`，用于放行 `dde-shell` 的 GeoClue 定位授权
+- `libqt6positioning6-plugins` 运行时依赖，确保 Qt Positioning 可以加载 GeoClue 插件
+
+## 自动定位配置
+
+如果通过 `cmake --install` 或安装 `.deb` 部署插件，项目会自动安装 GeoClue 配置文件
+`/etc/geoclue/conf.d/90-dde-shell.conf`。
+
+如果你只是手动复制了插件文件，或者需要在现有系统上补配置，可以手动创建：
+
+```ini
+[org.deepin.ds.desktop]
+allowed=true
+system=true
+users=
+```
+
+示例命令：
+
+```bash
+sudo install -d /etc/geoclue/conf.d
+sudo tee /etc/geoclue/conf.d/90-dde-shell.conf >/dev/null <<'EOF'
+[org.deepin.ds.desktop]
+allowed=true
+system=true
+users=
+EOF
+
+sudo systemctl restart geoclue.service
+systemctl --user restart dde-shell@DDE.service
+```
+
+这项配置只解决 GeoClue 对 `dde-shell` 的授权问题。若仍出现 `UpdateTimeoutError`，说明系统定位源本身没有在超时时间内返回结果。
+
 ## GitHub Actions
 
 - `.github/workflows/build.yml`：在 `main/master` 分支和 PR 上做常规编译，并上传安装树产物。
@@ -85,6 +122,7 @@ dpkg-buildpackage -us -uc -b
 ```
 dde-shell-weather-plugin/
 ├── CMakeLists.txt                   # 构建配置
+├── config/geoclue/90-dde-shell.conf # GeoClue 授权配置
 ├── src/                             # C++ 源码
 │   ├── weatherapplet.h/cpp          # 插件主类
 │   └── weatherprovider.h/cpp        # 天气数据提供者

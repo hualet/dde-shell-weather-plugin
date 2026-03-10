@@ -63,6 +63,11 @@ install(
 )
 
 install(
+    FILES ${CMAKE_CURRENT_SOURCE_DIR}/config/geoclue/90-dde-shell.conf
+    DESTINATION /etc/geoclue/conf.d
+)
+
+install(
     TARGETS ds-weather-applet
     DESTINATION ${DDE_SHELL_PLUGIN_INSTALL_DIR}/
 )
