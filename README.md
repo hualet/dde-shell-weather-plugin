@@ -114,7 +114,7 @@ systemctl --user restart dde-shell@DDE.service
 ## GitHub Actions
 
 - `.github/workflows/build.yml`：在 `main/master` 分支和 PR 上做常规编译，并上传安装树产物。
-- `.github/workflows/deb.yml`：支持手动触发，或在推送 `v*` tag 时构建 `deb` 并附加到 GitHub Release。
+- `.github/workflows/deb.yml`：支持手动触发、推送 `v*` tag，或发布 GitHub Release 时构建 `deb`，并将产物附加到对应 Release。
 - 两个工作流都使用 `docker.io/hualet/deepin:25-builder` 作为构建容器，避免 GitHub Runner 缺少 Deepin 依赖。
 
 ## 项目结构
