@@ -2,7 +2,7 @@
 
 一个为 DDE Shell (Deepin Desktop Environment) 开发的天气任务栏插件。
 
-![plugin showcase](/home/hualet/projects/hualet/dde-shell-weather-plugin/docs/res/showcase.png)
+![plugin showcase](./docs/res/showcase.png)
 
 ## 功能特性
 
@@ -47,6 +47,37 @@ make -j$(nproc)
 # 4. 安装（需要 root 权限）
 sudo make install
 ```
+
+## Debian/Deepin 打包
+
+```bash
+sudo apt install -y \
+  build-essential \
+  debhelper \
+  dpkg-dev \
+  cmake \
+  pkg-config \
+  qt6-base-dev \
+  qt6-base-dev-tools \
+  qt6-declarative-dev \
+  qt6-positioning-dev \
+  qt6-tools-dev \
+  qt6-tools-dev-tools \
+  libdtk6core-dev \
+  libdtk6gui-dev \
+  libdtk6widget-dev \
+  libdde-shell-dev
+
+dpkg-buildpackage -us -uc -b
+```
+
+构建完成后，`.deb`、`.changes`、`.buildinfo` 会出现在项目上一级目录。
+
+## GitHub Actions
+
+- `.github/workflows/build.yml`：在 `main/master` 分支和 PR 上做常规编译，并上传安装树产物。
+- `.github/workflows/deb.yml`：支持手动触发，或在推送 `v*` tag 时构建 `deb` 并附加到 GitHub Release。
+- 两个工作流都使用 `docker.io/hualet/deepin:25-builder` 作为构建容器，避免 GitHub Runner 缺少 Deepin 依赖。
 
 ## 项目结构
 
