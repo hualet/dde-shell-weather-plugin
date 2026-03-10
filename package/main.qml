@@ -13,7 +13,8 @@ AppletItem {
     objectName: "weather applet"
     
     property bool useColumnLayout: Panel.position % 2
-    property int dockOrder: 20
+    property int dockOrder: 10
+
     
     implicitWidth: useColumnLayout ? Panel.rootObject.dockSize : 280
     implicitHeight: useColumnLayout ? 140 : Panel.rootObject.dockSize
