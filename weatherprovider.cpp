@@ -58,10 +58,8 @@ WeatherProvider::initLocationSource ()
     {
       connect (m_positionSource, &QGeoPositionInfoSource::positionUpdated,
                this, &WeatherProvider::onPositionUpdated);
-      connect (m_positionSource,
-               QOverload<QGeoPositionInfoSource::Error>::of (
-                   &QGeoPositionInfoSource::error),
-               this, &WeatherProvider::onPositionError);
+      connect (m_positionSource, &QGeoPositionInfoSource::errorOccurred, this,
+               &WeatherProvider::onPositionError);
 
       // Request position update
       m_positionSource->requestUpdate (10000); // 10 seconds timeout
