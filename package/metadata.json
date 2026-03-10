@@ -1,0 +1,10 @@
+{
+  "Plugin": {
+    "Version": "1.0.0",
+    "Id": "org.deepin.ds.weather",
+    "Url": "main.qml",
+    "Parent": "org.deepin.ds.dock",
+    "Name": "Weather Applet",
+    "Description": "Display current weather information with beautiful animations"
+  }
+}
