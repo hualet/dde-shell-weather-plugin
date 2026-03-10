@@ -11,7 +11,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find required packages
-find_package(Qt6 REQUIRED COMPONENTS Core Network Quick QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Core LinguistTools Network Quick QuickControls2)
 find_package(Qt6 OPTIONAL_COMPONENTS Positioning Location)
 find_package(Dtk6 REQUIRED COMPONENTS Core Widget)
 find_package(DDEShell REQUIRED)
@@ -48,11 +48,25 @@ if(Qt6Location_FOUND)
 endif()
 
 set(DS_WEATHER_PACKAGE_ID org.deepin.ds.weather)
+set(DS_WEATHER_QML_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/package/main.qml
+    ${CMAKE_CURRENT_SOURCE_DIR}/package/WeatherIcon.qml
+)
+set(DS_WEATHER_SOURCE_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/weatherapplet.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/weatherprovider.cpp
+)
 
 # Build the dde-shell package tree, but exclude VCS metadata from installation.
 ds_build_package(
     PACKAGE ${DS_WEATHER_PACKAGE_ID}
     TARGET ds-weather-applet
+)
+
+ds_handle_package_translation(
+    PACKAGE ${DS_WEATHER_PACKAGE_ID}
+    QML_FILES ${DS_WEATHER_QML_FILES}
+    SOURCE_FILES ${DS_WEATHER_SOURCE_FILES}
 )
 
 install(

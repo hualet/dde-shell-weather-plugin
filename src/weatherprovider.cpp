@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QNetworkRequest>
 #include <QUrlQuery>
 
@@ -16,10 +17,148 @@
 
 namespace
 {
+constexpr double kMetersPerSecondToKilometersPerHour = 3.6;
+constexpr double kMetersPerSecondToMilesPerHour = 2.2369362920544;
+
 qint64
 nowMs ()
 {
   return QDateTime::currentMSecsSinceEpoch ();
+}
+
+QLocale
+formatLocale ()
+{
+  const QLocale locale;
+  if (locale.language () != QLocale::C)
+    {
+      return locale;
+    }
+
+  const QLocale systemLocale = QLocale::system ();
+  if (systemLocale.language () != QLocale::C)
+    {
+      return systemLocale;
+    }
+
+  return QLocale (QLocale::English);
+}
+
+bool
+usesFahrenheit (const QLocale &locale)
+{
+  return locale.measurementSystem () == QLocale::ImperialUSSystem;
+}
+
+bool
+usesMilesPerHour (const QLocale &locale)
+{
+  return locale.measurementSystem () == QLocale::ImperialUSSystem
+         || locale.measurementSystem () == QLocale::ImperialUKSystem;
+}
+
+double
+celsiusToDisplayValue (double celsius, const QLocale &locale)
+{
+  if (usesFahrenheit (locale))
+    {
+      return celsius * 9.0 / 5.0 + 32.0;
+    }
+
+  return celsius;
+}
+
+double
+metersPerSecondToDisplayValue (double metersPerSecond, const QLocale &locale)
+{
+  if (usesMilesPerHour (locale))
+    {
+      return metersPerSecond * kMetersPerSecondToMilesPerHour;
+    }
+
+  return metersPerSecond * kMetersPerSecondToKilometersPerHour;
+}
+
+double
+windSpeedToMetersPerSecond (double windSpeed, const QString &unit)
+{
+  if (unit == QStringLiteral ("km/h"))
+    {
+      return windSpeed / kMetersPerSecondToKilometersPerHour;
+    }
+
+  if (unit == QStringLiteral ("mph"))
+    {
+      return windSpeed / kMetersPerSecondToMilesPerHour;
+    }
+
+  return windSpeed;
+}
+
+QString
+temperatureUnitForLocale (const QLocale &locale)
+{
+  if (usesFahrenheit (locale))
+    {
+      return QStringLiteral ("°F");
+    }
+
+  return QStringLiteral ("°C");
+}
+
+QString
+windSpeedUnitForLocale (const QLocale &locale)
+{
+  if (usesMilesPerHour (locale))
+    {
+      return QStringLiteral ("mph");
+    }
+
+  return QStringLiteral ("km/h");
+}
+
+QString
+openMeteoWindSpeedQueryUnit (const QLocale &locale)
+{
+  if (usesMilesPerHour (locale))
+    {
+      return QStringLiteral ("mph");
+    }
+
+  return QStringLiteral ("kmh");
+}
+
+QString
+uiLanguageCode ()
+{
+  const QStringList uiLanguages = QLocale::system ().uiLanguages ();
+
+  for (QString uiLanguage : uiLanguages)
+    {
+      const int encodingSeparator = uiLanguage.indexOf (QLatin1Char ('.'));
+      if (encodingSeparator >= 0)
+        {
+          uiLanguage.truncate (encodingSeparator);
+        }
+
+      uiLanguage.replace (QLatin1Char ('-'), QLatin1Char ('_'));
+      const QString languageCode
+          = uiLanguage.section (QLatin1Char ('_'), 0, 0).toLower ();
+      if (!languageCode.isEmpty () && languageCode != QStringLiteral ("c"))
+        {
+          return languageCode;
+        }
+    }
+
+  const QString localeName
+      = formatLocale ().name ().section ('_', 0, 0).toLower ();
+
+  if (localeName.isEmpty () || localeName == QStringLiteral ("c"))
+    {
+      return QStringLiteral ("en");
+    }
+
+  return localeName;
 }
 } // namespace
 
@@ -27,8 +166,7 @@ WeatherProvider::WeatherProvider (QObject *parent)
     : QObject (parent), m_networkManager (new QNetworkAccessManager (this)),
       m_positionSource (nullptr), m_refreshTimer (new QTimer (this)),
       m_latitude (0), m_longitude (0), m_isLoading (false), m_hasError (false),
-      m_providerName (tr ("MET Norway")),
-      m_candidateServices (buildCandidateServices ())
+      m_providerName (tr ("MET Norway"))
 {
   // Setup refresh timer (update every 30 minutes)
   connect (m_refreshTimer, &QTimer::timeout, this, &WeatherProvider::refresh);
@@ -195,6 +333,7 @@ WeatherProvider::fetchMetNoWeather (double latitude, double longitude)
 void
 WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
 {
+  const QLocale locale = formatLocale ();
   QUrl url ("https://api.open-meteo.com/v1/forecast");
   QUrlQuery query;
   query.addQueryItem ("latitude", QString::number (latitude));
@@ -204,7 +343,7 @@ WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
       "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
   query.addQueryItem ("daily", "temperature_2m_max,temperature_2m_min");
   query.addQueryItem ("timezone", "auto");
-  query.addQueryItem ("wind_speed_unit", "ms");
+  query.addQueryItem ("wind_speed_unit", openMeteoWindSpeedQueryUnit (locale));
   url.setQuery (query);
 
   qInfo () << "Weather request start"
@@ -231,7 +370,7 @@ WeatherProvider::fetchCityName (double latitude, double longitude)
   QUrlQuery query;
   query.addQueryItem ("latitude", QString::number (latitude));
   query.addQueryItem ("longitude", QString::number (longitude));
-  query.addQueryItem ("localityLanguage", "en");
+  query.addQueryItem ("localityLanguage", uiLanguageCode ());
   url.setQuery (query);
 
   qInfo () << "City request start"
@@ -500,7 +639,10 @@ WeatherProvider::parseOpenMeteoWeather (const QJsonObject &root)
 
   m_weatherData.temperature = current["temperature_2m"].toDouble ();
   m_weatherData.humidity = current["relative_humidity_2m"].toDouble ();
-  m_weatherData.windSpeed = current["wind_speed_10m"].toDouble ();
+  const QString windSpeedUnit
+      = root["current_units"].toObject ()["wind_speed_10m"].toString ();
+  m_weatherData.windSpeed = windSpeedToMetersPerSecond (
+      current["wind_speed_10m"].toDouble (), windSpeedUnit);
 
   const int weatherCode = current["weather_code"].toInt ();
   m_weatherData.weatherCode = QString::number (weatherCode);
@@ -640,6 +782,62 @@ WeatherProvider::parseMetNoSymbolCode (const QString &symbolCode)
 }
 
 QVariantList
+WeatherProvider::candidateServices () const
+{
+  return buildCandidateServices ();
+}
+
+QString
+WeatherProvider::formattedTemperature () const
+{
+  const QLocale locale = formatLocale ();
+  const double displayValue
+      = celsiusToDisplayValue (m_weatherData.temperature, locale);
+
+  return tr ("%1%2")
+      .arg (locale.toString (qRound (displayValue)))
+      .arg (temperatureUnitForLocale (locale));
+}
+
+QString
+WeatherProvider::formattedTemperatureRange () const
+{
+  const QLocale locale = formatLocale ();
+  const QString minValue = locale.toString (qRound (celsiusToDisplayValue (
+                               m_weatherData.temperatureMin, locale)))
+                           + QStringLiteral ("°");
+  const QString maxValue = locale.toString (qRound (celsiusToDisplayValue (
+                               m_weatherData.temperatureMax, locale)))
+                           + QStringLiteral ("°");
+
+  return tr ("%1/%2").arg (minValue).arg (maxValue);
+}
+
+QString
+WeatherProvider::formattedWindSpeed () const
+{
+  const QLocale locale = formatLocale ();
+  const double displayValue
+      = metersPerSecondToDisplayValue (m_weatherData.windSpeed, locale);
+
+  return tr ("%1 %2")
+      .arg (locale.toString (qRound (displayValue)))
+      .arg (windSpeedUnitForLocale (locale));
+}
+
+QString
+WeatherProvider::temperatureUnit () const
+{
+  return temperatureUnitForLocale (formatLocale ());
+}
+
+QString
+WeatherProvider::windSpeedUnit () const
+{
+  return windSpeedUnitForLocale (formatLocale ());
+}
+
+QVariantList
 WeatherProvider::buildCandidateServices () const
 {
   return {
@@ -648,8 +846,11 @@ WeatherProvider::buildCandidateServices () const
         { "key", "met-no" },
         { "name", "MET Norway (api.met.no)" },
         { "status", "implemented" },
+        { "statusLabel", tr ("Implemented") },
         { "coverage", "global" },
-        { "auth", "User-Agent" },
+        { "coverageLabel", tr ("Global") },
+        { "auth", "user-agent" },
+        { "authLabel", tr ("User-Agent") },
         { "reason", tr ("Best default choice: global coverage, no API key, "
                         "forecast quality is high.") },
     },
@@ -658,8 +859,11 @@ WeatherProvider::buildCandidateServices () const
         { "key", "nws" },
         { "name", "US National Weather Service (api.weather.gov)" },
         { "status", "candidate" },
-        { "coverage", "United States" },
-        { "auth", "User-Agent" },
+        { "statusLabel", tr ("Candidate") },
+        { "coverage", "united-states" },
+        { "coverageLabel", tr ("United States") },
+        { "auth", "user-agent" },
+        { "authLabel", tr ("User-Agent") },
         { "reason", tr ("High-quality official data, but only suitable for US "
                         "locations.") },
     },
@@ -668,8 +872,11 @@ WeatherProvider::buildCandidateServices () const
         { "key", "openweathermap" },
         { "name", "OpenWeatherMap" },
         { "status", "candidate" },
+        { "statusLabel", tr ("Candidate") },
         { "coverage", "global" },
-        { "auth", "API key" },
+        { "coverageLabel", tr ("Global") },
+        { "auth", "api-key" },
+        { "authLabel", tr ("API key") },
         { "reason", tr ("Global and mature, but setup cost is higher because "
                         "an API key is required.") },
     },
@@ -678,8 +885,11 @@ WeatherProvider::buildCandidateServices () const
         { "key", "metar" },
         { "name", "METAR / AviationWeather" },
         { "status", "candidate" },
+        { "statusLabel", tr ("Candidate") },
         { "coverage", "station-based" },
+        { "coverageLabel", tr ("Station-based") },
         { "auth", "none" },
+        { "authLabel", tr ("None") },
         { "reason", tr ("Useful for current observations near airports, but "
                         "weak for general forecast UX.") },
     },
@@ -688,8 +898,11 @@ WeatherProvider::buildCandidateServices () const
         { "key", "iwin" },
         { "name", "IWIN (legacy)" },
         { "status", "legacy" },
-        { "coverage", "legacy US feeds" },
+        { "statusLabel", tr ("Legacy") },
+        { "coverage", "legacy-us-feeds" },
+        { "coverageLabel", tr ("Legacy US feeds") },
         { "auth", "unknown" },
+        { "authLabel", tr ("Unknown") },
         { "reason", tr ("Legacy source kept for compatibility in libgweather, "
                         "not a good new integration target.") },
     },

@@ -5,6 +5,12 @@
     "Url": "main.qml",
     "Parent": "org.deepin.ds.dock",
     "Name": "Weather Applet",
-    "Description": "Display current weather information with beautiful animations"
+    "Name[zh_CN]": "天气小组件",
+    "Name[zh_HK]": "天氣小工具",
+    "Name[zh_TW]": "天氣小工具",
+    "Description": "Display current weather information with beautiful animations",
+    "Description[zh_CN]": "显示当前天气信息和动态天气图标",
+    "Description[zh_HK]": "顯示目前天氣資訊和動態天氣圖示",
+    "Description[zh_TW]": "顯示目前天氣資訊和動態天氣圖示"
   }
 }

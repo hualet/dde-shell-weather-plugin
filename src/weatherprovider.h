@@ -51,6 +51,15 @@ class WeatherProvider : public QObject
   Q_PROPERTY (double temperatureMin READ temperatureMin NOTIFY weatherChanged)
   Q_PROPERTY (QString providerName READ providerName NOTIFY weatherChanged)
   Q_PROPERTY (QVariantList candidateServices READ candidateServices CONSTANT)
+  Q_PROPERTY (QString formattedTemperature READ formattedTemperature NOTIFY
+                  weatherChanged)
+  Q_PROPERTY (QString formattedTemperatureRange READ formattedTemperatureRange
+                  NOTIFY weatherChanged)
+  Q_PROPERTY (
+      QString formattedWindSpeed READ formattedWindSpeed NOTIFY weatherChanged)
+  Q_PROPERTY (
+      QString temperatureUnit READ temperatureUnit NOTIFY weatherChanged)
+  Q_PROPERTY (QString windSpeedUnit READ windSpeedUnit NOTIFY weatherChanged)
 
 public:
   explicit WeatherProvider (QObject *parent = nullptr);
@@ -118,11 +127,12 @@ public:
   {
     return m_providerName;
   }
-  QVariantList
-  candidateServices () const
-  {
-    return m_candidateServices;
-  }
+  QVariantList candidateServices () const;
+  QString formattedTemperature () const;
+  QString formattedTemperatureRange () const;
+  QString formattedWindSpeed () const;
+  QString temperatureUnit () const;
+  QString windSpeedUnit () const;
 
   Q_INVOKABLE void refresh ();
   Q_INVOKABLE void setLocation (double latitude, double longitude);
@@ -175,7 +185,6 @@ private:
   bool m_hasError;
   QString m_errorMessage;
   QString m_providerName;
-  QVariantList m_candidateServices;
 
 #ifdef QT_POSITIONING_LIB
   QGeoPositionInfoSource *m_positionSource;

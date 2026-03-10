@@ -92,7 +92,7 @@ AppletItem {
                 
                 Text {
                     id: tempRangeLabel
-                    text: qsTr("%1°/%2°").arg(Math.round(Applet.weather.temperatureMin)).arg(Math.round(Applet.weather.temperatureMax))
+                    text: Applet.weather.formattedTemperatureRange
                     font.pixelSize: 10
                     color: themeColors.text
                     opacity: 0.8
@@ -105,7 +105,7 @@ AppletItem {
                 
                 Text {
                     id: tempLabel
-                    text: qsTr("%1°C").arg(Math.round(Applet.weather.temperature))
+                    text: Applet.weather.formattedTemperature
                     font.pixelSize: 14
                     font.bold: true
                     color: themeColors.text
