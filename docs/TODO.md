@@ -1,0 +1,2 @@
+- [ ] /init-deep QML 注意不要出现重复ID、C++代码写完都跑一下 clang-format gnu 风格
+- [ ] 尝试使用 VectorImage 加载 svg 格式的动态天气图标
