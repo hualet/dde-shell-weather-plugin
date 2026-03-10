@@ -1,3 +1,11 @@
+dde-shell-weather-plugin (1.0.2-1) unstable; urgency=medium
+
+  * Start a GeoClue agent before requesting location and stop it after the
+    location request completes.
+  * Remove the static GeoClue config installation and depend on geoclue-2-demo.
+
+ -- Deepin Packages Builder <packages@deepin.org>  Wed, 11 Mar 2026 10:00:00 +0800
+
 dde-shell-weather-plugin (1.0.0-1) unstable; urgency=medium
 
   * Initial release.
