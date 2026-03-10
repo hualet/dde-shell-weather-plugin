@@ -1,3 +1,4 @@
 - [x] /init-deep QML 注意不要出现重复ID、C++代码写完都跑一下 clang-format gnu 风格
 - [ ] 尝试使用 VectorImage 加载 svg 格式的动态天气图标
 - [ ] 刷新机制，比如连接失败以后多长时间自动刷新
+- [ ] 支持亮色/暗色主题切换
