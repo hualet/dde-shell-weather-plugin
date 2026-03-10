@@ -18,7 +18,8 @@
 - **Qt6** - UI 框架
 - **QML** - 界面设计
 - **DTK6** - Deepin Tool Kit
-- **Open-Meteo API** - 天气数据源
+- **MET Norway API** - 主天气数据源
+- **Open-Meteo API** - 兜底天气数据源
 
 ## 构建要求
 
@@ -96,7 +97,11 @@ dde-shell-weather-plugin/
 
 ## API 使用
 
-本插件使用 [Open-Meteo](https://open-meteo.com/) 免费 API 获取天气数据，无需 API 密钥。
+本插件优先使用 [MET Norway / api.met.no](https://api.met.no/weatherapi/locationforecast/2.0/documentation) 获取天气数据，无需 API 密钥，只需要提供规范的 `User-Agent`。
+
+当 `MET Norway` 不可用时，插件会自动回退到 [Open-Meteo](https://open-meteo.com/)。
+
+基于 `libgweather` 免费天气源的候选服务优先级与选择理由，见 [docs/weather-provider-candidates.md](docs/weather-provider-candidates.md)。
 
 ## 许可证
 
@@ -108,5 +113,6 @@ GPL-3.0-or-later
 
 ## 致谢
 
-- [Open-Meteo](https://open-meteo.com/) - 免费的天气 API
+- [MET Norway](https://api.met.no/) - 免费的全球天气 API
+- [Open-Meteo](https://open-meteo.com/) - 免费的天气 API 兜底源
 - [DDE Shell](https://github.com/linuxdeepin/dde-shell) - Deepin 桌面环境
