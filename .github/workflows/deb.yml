@@ -52,8 +52,9 @@ jobs:
         run: |
           dpkg-buildpackage -us -uc -b
           mkdir -p output
-          shopt -s nullglob
-          cp ../*.deb ../*.changes ../*.buildinfo output/
+          find .. -maxdepth 1 -type f \
+            \( -name '*.deb' -o -name '*.changes' -o -name '*.buildinfo' \) \
+            -exec cp {} output/ \;
 
       - name: Upload Debian package
         uses: actions/upload-artifact@v4
