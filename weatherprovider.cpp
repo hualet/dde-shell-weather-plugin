@@ -114,6 +114,7 @@ void WeatherProvider::fetchWeather(double latitude, double longitude)
     query.addQueryItem("latitude", QString::number(latitude));
     query.addQueryItem("longitude", QString::number(longitude));
     query.addQueryItem("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
+    query.addQueryItem("daily", "temperature_2m_max,temperature_2m_min");
     query.addQueryItem("timezone", "auto");
     url.setQuery(query);
 
@@ -171,6 +172,20 @@ void WeatherProvider::onWeatherReplyFinished(QNetworkReply *reply)
         int weatherCode = current["weather_code"].toInt();
         m_weatherData.weatherCode = QString::number(weatherCode);
         m_weatherData.weatherDescription = parseWeatherCode(weatherCode);
+        
+        // Parse daily max/min temperature
+        if (root.contains("daily")) {
+            QJsonObject daily = root["daily"].toObject();
+            QJsonArray maxTemps = daily["temperature_2m_max"].toArray();
+            QJsonArray minTemps = daily["temperature_2m_min"].toArray();
+            if (!maxTemps.isEmpty()) {
+                m_weatherData.temperatureMax = maxTemps[0].toDouble();
+            }
+            if (!minTemps.isEmpty()) {
+                m_weatherData.temperatureMin = minTemps[0].toDouble();
+            }
+        }
+        
         m_weatherData.isValid = true;
         
         emit weatherChanged();

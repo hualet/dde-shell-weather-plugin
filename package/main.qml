@@ -4,7 +4,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtQuick.Particles 2.15
 import org.deepin.ds 1.0
 import org.deepin.ds.dock 1.0
 
@@ -14,220 +13,106 @@ AppletItem {
     
     property bool useColumnLayout: Panel.position % 2
     property int dockOrder: 10
-
     
-    implicitWidth: useColumnLayout ? Panel.rootObject.dockSize : 280
-    implicitHeight: useColumnLayout ? 140 : Panel.rootObject.dockSize
+    property int dockSize: Panel.rootObject.dockSize || 48
     
-    // Background with gradient
-    Rectangle {
-        id: background
+    implicitWidth: useColumnLayout ? dockSize : 180
+    implicitHeight: dockSize
+    
+    // Loading indicator
+    BusyIndicator {
+        anchors.centerIn: parent
+        running: Applet.weather.isLoading
+        visible: running
+        width: 20
+        height: 20
+    }
+    
+    // Error message
+    Text {
+        anchors.centerIn: parent
+        text: Applet.weather.hasError ? Applet.weather.errorMessage : ""
+        color: themeColors.text
+        font.pixelSize: 10
+        visible: Applet.weather.hasError
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
+        width: parent.width - 10
+    }
+    
+    // Main content: Left icon + Right info (two rows)
+    RowLayout {
         anchors.fill: parent
-        radius: useColumnLayout ? Panel.rootObject.dockSize / 2 : 12
+        anchors.leftMargin: 2
+        anchors.rightMargin: 2
+        anchors.topMargin: 1
+        anchors.bottomMargin: 1
+        spacing: 2
+        visible: !Applet.weather.isLoading && !Applet.weather.hasError
         
-        // Dynamic gradient based on weather
-        gradient: Gradient {
-            GradientStop {
-                position: 0.0
-                color: getTopGradientColor()
-            }
-            GradientStop {
-                position: 1.0
-                color: getBottomGradientColor()
-            }
-        }
-        
-        // Particle system for weather effects
-        ParticleWeather {
-            id: particleSystem
-            anchors.fill: parent
+        // Left: Weather icon
+        WeatherIcon {
+            id: weatherIcon
+            Layout.preferredWidth: dockSize - 8
+            Layout.preferredHeight: dockSize - 8
             weatherCode: Applet.weather.weatherCode
-            visible: !Applet.weather.isLoading
+            iconColor: themeColors.icon
+            Layout.alignment: Qt.AlignVCenter
         }
         
-        // Loading indicator
-        BusyIndicator {
-            anchors.centerIn: parent
-            running: Applet.weather.isLoading
-            visible: running
-            width: 48
-            height: 48
-        }
-        
-        // Error message
-        Text {
-            anchors.centerIn: parent
-            text: Applet.weather.hasError ? Applet.weather.errorMessage : ""
-            color: "white"
-            font.pixelSize: 14
-            visible: Applet.weather.hasError
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            width: parent.width - 40
-        }
-        
-        // Main content layout
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 16
-            spacing: 16
-            visible: !Applet.weather.isLoading && !Applet.weather.hasError
+        // Right: Two rows
+        ColumnLayout {
+            spacing: 0
             
-            // Left: Weather icon
-            WeatherIcon {
-                id: weatherIcon
-                Layout.preferredWidth: useColumnLayout ? Panel.rootObject.dockSize * 0.6 : 80
-                Layout.preferredHeight: useColumnLayout ? Panel.rootObject.dockSize * 0.6 : 80
-                weatherCode: Applet.weather.weatherCode
-                animated: true
-            }
-            
-            // Right: Weather information
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 8
+            // Row 1: Location + High/Low temp
+            RowLayout {
+                spacing: 4
                 
-                // City name
-                Label {
+                Text {
                     id: cityLabel
                     text: Applet.weather.city
-                    font.pixelSize: useColumnLayout ? 12 : 18
-                    font.bold: true
-                    color: "white"
-                    Layout.fillWidth: true
+                    font.pixelSize: 10
+                    color: themeColors.text
                     elide: Text.ElideRight
-                    visible: !useColumnLayout
                 }
                 
-                // Temperature
-                Label {
+                Text {
+                    id: tempRangeLabel
+                    text: qsTr("%1°/%2°").arg(Math.round(Applet.weather.temperatureMin)).arg(Math.round(Applet.weather.temperatureMax))
+                    font.pixelSize: 10
+                    color: themeColors.text
+                    opacity: 0.8
+                }
+            }
+            
+            // Row 2: Current temp + Weather description
+            RowLayout {
+                spacing: 4
+                
+                Text {
                     id: tempLabel
                     text: qsTr("%1°C").arg(Math.round(Applet.weather.temperature))
-                    font.pixelSize: useColumnLayout ? 24 : 36
+                    font.pixelSize: 14
                     font.bold: true
-                    color: "white"
+                    color: themeColors.text
                 }
                 
-                // Weather description
-                Label {
+                Text {
                     id: descLabel
                     text: Applet.weather.weatherDescription
-                    font.pixelSize: useColumnLayout ? 10 : 14
-                    color: "white"
-                    opacity: 0.9
-                    visible: !useColumnLayout
-                }
-                
-                // Additional info row
-                RowLayout {
-                    spacing: 12
-                    visible: !useColumnLayout
-                    
-                    // Humidity
-                    Row {
-                        spacing: 4
-                        Text {
-                            text: "💧"
-                            font.pixelSize: 12
-                        }
-                        Text {
-                            text: qsTr("%1%").arg(Math.round(Applet.weather.humidity))
-                            font.pixelSize: 12
-                            color: "white"
-                            opacity: 0.8
-                        }
-                    }
-                    
-                    // Wind speed
-                    Row {
-                        spacing: 4
-                        Text {
-                            text: "💨"
-                            font.pixelSize: 12
-                        }
-                        Text {
-                            text: qsTr("%1 km/h").arg(Math.round(Applet.weather.windSpeed))
-                            font.pixelSize: 12
-                            color: "white"
-                            opacity: 0.8
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Refresh button
-        Rectangle {
-            id: refreshButton
-            width: 32
-            height: 32
-            radius: 16
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 8
-            color: refreshMouseArea.containsMouse ? "white" : "transparent"
-            opacity: refreshMouseArea.containsMouse ? 0.3 : 0.5
-            visible: !useColumnLayout
-            
-            Text {
-                anchors.centerIn: parent
-                text: "↻"
-                font.pixelSize: 18
-                color: "white"
-            }
-            
-            MouseArea {
-                id: refreshMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                
-                onClicked: {
-                    Applet.weather.refresh()
+                    font.pixelSize: 10
+                    color: themeColors.text
+                    opacity: 0.8
+                    elide: Text.ElideRight
                 }
             }
         }
     }
     
-    // Helper functions for gradient colors
-    function getTopGradientColor() {
-        var code = parseInt(Applet.weather.weatherCode) || 0
-        
-        // Clear sky - sunny
-        if (code === 0) return "#4A90E2"
-        // Partly cloudy
-        if (code >= 1 && code <= 3) return "#5DADE2"
-        // Fog
-        if (code >= 45 && code <= 48) return "#7F8C8D"
-        // Drizzle or Rain
-        if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "#546E7A"
-        // Snow
-        if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return "#B0BEC5"
-        // Thunderstorm
-        if (code >= 95 && code <= 99) return "#37474F"
-        
-        // Default
-        return "#4A90E2"
-    }
-    
-    function getBottomGradientColor() {
-        var code = parseInt(Applet.weather.weatherCode) || 0
-        
-        // Clear sky - sunny
-        if (code === 0) return "#87CEEB"
-        // Partly cloudy
-        if (code >= 1 && code <= 3) return "#85C1E9"
-        // Fog
-        if (code >= 45 && code <= 48) return "#95A5A6"
-        // Drizzle or Rain
-        if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return "#607D8B"
-        // Snow
-        if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return "#CFD8DC"
-        // Thunderstorm
-        if (code >= 95 && code <= 99) return "#455A64"
-        
-        // Default
-        return "#87CEEB"
+    // Theme colors
+    QtObject {
+        id: themeColors
+        readonly property color text: Qt.rgba(1, 1, 1, 0.9)
+        readonly property color icon: Qt.rgba(1, 1, 1, 0.95)
     }
 }

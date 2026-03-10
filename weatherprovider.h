@@ -17,12 +17,14 @@ struct WeatherData {
     QString city;
     QString weatherCode;
     double temperature;
+    double temperatureMax;
+    double temperatureMin;
     double humidity;
     double windSpeed;
     QString weatherDescription;
     bool isValid;
     
-    WeatherData() : temperature(0), humidity(0), windSpeed(0), isValid(false) {}
+    WeatherData() : temperature(0), temperatureMax(0), temperatureMin(0), humidity(0), windSpeed(0), isValid(false) {}
 };
 
 class WeatherProvider : public QObject
@@ -38,6 +40,9 @@ class WeatherProvider : public QObject
     Q_PROPERTY(bool hasError READ hasError NOTIFY errorChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
 
+    Q_PROPERTY(double temperatureMax READ temperatureMax NOTIFY weatherChanged)
+    Q_PROPERTY(double temperatureMin READ temperatureMin NOTIFY weatherChanged)
+
 public:
     explicit WeatherProvider(QObject *parent = nullptr);
     ~WeatherProvider();
@@ -49,6 +54,9 @@ public:
     double humidity() const { return m_weatherData.humidity; }
     double windSpeed() const { return m_weatherData.windSpeed; }
     QString weatherDescription() const { return m_weatherData.weatherDescription; }
+
+    double temperatureMax() const { return m_weatherData.temperatureMax; }
+    double temperatureMin() const { return m_weatherData.temperatureMin; }
     bool isLoading() const { return m_isLoading; }
     bool hasError() const { return m_hasError; }
     QString errorMessage() const { return m_errorMessage; }
