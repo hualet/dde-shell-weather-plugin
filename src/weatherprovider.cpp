@@ -4,6 +4,7 @@
 #include "weatherprovider.h"
 #include <QDateTime>
 #include <QDebug>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -19,6 +20,15 @@ namespace
 {
 constexpr double kMetersPerSecondToKilometersPerHour = 3.6;
 constexpr double kMetersPerSecondToMilesPerHour = 2.2369362920544;
+constexpr double kDefaultLatitude = 39.9042;
+constexpr double kDefaultLongitude = 116.4074;
+
+#ifdef QT_POSITIONING_LIB
+constexpr int kPositionRequestTimeoutMs = 10000;
+constexpr int kGeoclueAgentReadyDelayMs = 300;
+constexpr int kGeoclueAgentStartFallbackMs = 1500;
+constexpr int kGeoclueAgentStopGraceMs = 1000;
+#endif
 
 qint64
 nowMs ()
@@ -160,14 +170,45 @@ uiLanguageCode ()
 
   return localeName;
 }
+
+#ifdef QT_POSITIONING_LIB
+void
+logGeoclueAgentOutput (QProcess *process)
+{
+  if (!process)
+    {
+      return;
+    }
+
+  const QString output
+      = QString::fromLocal8Bit (process->readAllStandardOutput ()).trimmed ();
+  if (!output.isEmpty ())
+    {
+      qInfo ().noquote () << "Geoclue agent output:" << output;
+    }
+}
+#endif
 } // namespace
 
 WeatherProvider::WeatherProvider (QObject *parent)
     : QObject (parent), m_networkManager (new QNetworkAccessManager (this)),
-      m_positionSource (nullptr), m_refreshTimer (new QTimer (this)),
-      m_latitude (0), m_longitude (0), m_isLoading (false), m_hasError (false),
-      m_providerName (tr ("MET Norway"))
+      m_refreshTimer (new QTimer (this)), m_latitude (0), m_longitude (0),
+      m_isLoading (false), m_hasError (false),
+      m_providerName (tr ("MET Norway")), m_positionSource (nullptr),
+      m_geoclueAgentProcess (nullptr), m_positionRequestPending (false)
 {
+#ifdef QT_POSITIONING_LIB
+  m_geoclueAgentProcess = new QProcess (this);
+  m_geoclueAgentProcess->setProcessChannelMode (QProcess::MergedChannels);
+  connect (m_geoclueAgentProcess, &QProcess::started, this,
+           &WeatherProvider::onGeoclueAgentStarted);
+  connect (m_geoclueAgentProcess, &QProcess::errorOccurred, this,
+           &WeatherProvider::onGeoclueAgentErrorOccurred);
+  connect (m_geoclueAgentProcess,
+           qOverload<int, QProcess::ExitStatus> (&QProcess::finished), this,
+           &WeatherProvider::onGeoclueAgentFinished);
+#endif
+
   // Setup refresh timer (update every 30 minutes)
   connect (m_refreshTimer, &QTimer::timeout, this, &WeatherProvider::refresh);
   m_refreshTimer->start (30 * 60 * 1000);
@@ -179,6 +220,7 @@ WeatherProvider::WeatherProvider (QObject *parent)
 WeatherProvider::~WeatherProvider ()
 {
 #ifdef QT_POSITIONING_LIB
+  stopGeoclueAgent ();
   if (m_positionSource)
     {
       m_positionSource->stopUpdates ();
@@ -199,15 +241,14 @@ WeatherProvider::initLocationSource ()
       connect (m_positionSource, &QGeoPositionInfoSource::errorOccurred, this,
                &WeatherProvider::onPositionError);
 
-      // Request position update
-      m_positionSource->requestUpdate (10000); // 10 seconds timeout
+      requestLocationUpdate ();
       return;
     }
 #endif
 
   qWarning () << "Position source not available, using default location";
   // Use Beijing as default
-  setLocation (39.9042, 116.4074);
+  setLocation (kDefaultLatitude, kDefaultLongitude);
 }
 
 void
@@ -224,7 +265,7 @@ WeatherProvider::refresh ()
     }
   else if (m_positionSource)
     {
-      m_positionSource->requestUpdate (10000);
+      requestLocationUpdate ();
 #endif
     }
 }
@@ -232,6 +273,10 @@ WeatherProvider::refresh ()
 void
 WeatherProvider::setLocation (double latitude, double longitude)
 {
+#ifdef QT_POSITIONING_LIB
+  stopGeoclueAgent ();
+#endif
+
   qInfo () << "Weather location updated"
            << "latitude=" << latitude << "longitude=" << longitude;
 
@@ -248,6 +293,7 @@ WeatherProvider::onPositionUpdated (const QGeoPositionInfo &info)
   QGeoCoordinate coord = info.coordinate ();
   if (coord.isValid ())
     {
+      stopGeoclueAgent ();
       setLocation (coord.latitude (), coord.longitude ());
     }
 }
@@ -255,15 +301,65 @@ WeatherProvider::onPositionUpdated (const QGeoPositionInfo &info)
 void
 WeatherProvider::onPositionError (QGeoPositionInfoSource::Error error)
 {
+  stopGeoclueAgent ();
   qWarning () << "Position error:" << error;
   m_hasError = true;
   m_errorMessage = tr ("Failed to get location");
   emit errorChanged ();
 
   // Use default location
-  setLocation (39.9042, 116.4074);
+  setLocation (kDefaultLatitude, kDefaultLongitude);
+}
+
+void
+WeatherProvider::onGeoclueAgentStarted ()
+{
+  qInfo () << "Geoclue agent started"
+           << "program=" << m_geoclueAgentProcess->program ();
+  QTimer::singleShot (kGeoclueAgentReadyDelayMs, this,
+                      &WeatherProvider::requestPositionUpdate);
+}
+
+void
+WeatherProvider::onGeoclueAgentErrorOccurred (QProcess::ProcessError error)
+{
+  logGeoclueAgentOutput (m_geoclueAgentProcess);
+  qWarning () << "Failed to start Geoclue agent"
+              << "error=" << error
+              << "message=" << m_geoclueAgentProcess->errorString ();
+  requestPositionUpdate ();
+}
+
+void
+WeatherProvider::onGeoclueAgentFinished (int exitCode,
+                                         QProcess::ExitStatus exitStatus)
+{
+  logGeoclueAgentOutput (m_geoclueAgentProcess);
+  qInfo () << "Geoclue agent finished"
+           << "exitCode=" << exitCode << "exitStatus=" << exitStatus;
+  requestPositionUpdate ();
 }
 #endif
+
+void
+WeatherProvider::requestLocationUpdate ()
+{
+#ifdef QT_POSITIONING_LIB
+  if (!m_positionSource)
+    {
+      return;
+    }
+
+  if (m_positionRequestPending)
+    {
+      qInfo () << "Position request already pending";
+      return;
+    }
+
+  m_positionRequestPending = true;
+  ensureGeoclueAgentForLocation ();
+#endif
+}
 
 void
 WeatherProvider::fetchWeather (double latitude, double longitude)
@@ -908,3 +1004,122 @@ WeatherProvider::buildCandidateServices () const
     },
   };
 }
+
+#ifdef QT_POSITIONING_LIB
+void
+WeatherProvider::ensureGeoclueAgentForLocation ()
+{
+  if (!m_geoclueAgentProcess)
+    {
+      requestPositionUpdate ();
+      return;
+    }
+
+  const QString program = geoclueAgentProgram ();
+  if (program.isEmpty ())
+    {
+      qWarning () << "Geoclue agent not found, requesting location without "
+                     "pre-started authorization agent";
+      requestPositionUpdate ();
+      return;
+    }
+
+  if (m_geoclueAgentProcess->state () != QProcess::NotRunning)
+    {
+      qInfo () << "Geoclue agent already running"
+               << "program=" << m_geoclueAgentProcess->program ();
+      QTimer::singleShot (kGeoclueAgentReadyDelayMs, this,
+                          &WeatherProvider::requestPositionUpdate);
+      return;
+    }
+
+  qInfo () << "Starting Geoclue agent"
+           << "program=" << program;
+  m_geoclueAgentProcess->setProgram (program);
+  m_geoclueAgentProcess->setArguments ({});
+  m_geoclueAgentProcess->start ();
+
+  QTimer::singleShot (kGeoclueAgentStartFallbackMs, this, [this] () {
+    if (!m_positionRequestPending || !m_geoclueAgentProcess
+        || m_geoclueAgentProcess->state () == QProcess::Running)
+      {
+        return;
+      }
+
+    qWarning () << "Geoclue agent start timed out, requesting position anyway";
+    requestPositionUpdate ();
+  });
+}
+
+void
+WeatherProvider::requestPositionUpdate ()
+{
+  if (!m_positionSource || !m_positionRequestPending)
+    {
+      return;
+    }
+
+  m_positionRequestPending = false;
+  qInfo () << "Requesting position update"
+           << "timeoutMs=" << kPositionRequestTimeoutMs;
+  m_positionSource->requestUpdate (kPositionRequestTimeoutMs);
+}
+
+void
+WeatherProvider::stopGeoclueAgent ()
+{
+  if (!m_geoclueAgentProcess)
+    {
+      return;
+    }
+
+  m_positionRequestPending = false;
+
+  if (m_geoclueAgentProcess->state () == QProcess::NotRunning)
+    {
+      return;
+    }
+
+  qInfo () << "Stopping Geoclue agent"
+           << "program=" << m_geoclueAgentProcess->program ();
+  m_geoclueAgentProcess->terminate ();
+  QTimer::singleShot (kGeoclueAgentStopGraceMs, this, [this] () {
+    if (!m_geoclueAgentProcess
+        || m_geoclueAgentProcess->state () == QProcess::NotRunning)
+      {
+        return;
+      }
+
+    qWarning () << "Geoclue agent did not exit in time, killing process";
+    m_geoclueAgentProcess->kill ();
+  });
+}
+
+QString
+WeatherProvider::geoclueAgentProgram () const
+{
+  const QString configuredAgentPath
+      = qEnvironmentVariable ("DS_WEATHER_GEOCLUE_AGENT_PATH");
+  const QStringList candidates = {
+    configuredAgentPath,
+    QStringLiteral ("/usr/libexec/geoclue-2.0/demos/agent"),
+    QStringLiteral ("/usr/lib/geoclue-2.0/demos/agent"),
+  };
+
+  for (const QString &candidate : candidates)
+    {
+      if (candidate.isEmpty ())
+        {
+          continue;
+        }
+
+      const QFileInfo fileInfo (candidate);
+      if (fileInfo.isFile () && fileInfo.isExecutable ())
+        {
+          return fileInfo.absoluteFilePath ();
+        }
+    }
+
+  return QString ();
+}
+#endif

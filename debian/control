@@ -27,7 +27,8 @@ Architecture: any
 Depends: ${shlibs:Depends},
          ${misc:Depends},
          dde-shell,
-         libqt6positioning6-plugins
+         libqt6positioning6-plugins,
+         geoclue-2-demo
 Description: Weather applet plugin for DDE Shell
  DDE Shell weather plugin for the taskbar that shows current conditions,
  temperature ranges, and animated weather icons powered by Open-Meteo.

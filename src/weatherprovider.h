@@ -13,6 +13,7 @@
 #ifdef QT_POSITIONING_LIB
 #include <QGeoPositionInfo>
 #include <QGeoPositionInfoSource>
+#include <QProcess>
 #endif
 
 struct WeatherData
@@ -149,6 +150,9 @@ private slots:
 #ifdef QT_POSITIONING_LIB
   void onPositionUpdated (const QGeoPositionInfo &info);
   void onPositionError (QGeoPositionInfoSource::Error error);
+  void onGeoclueAgentStarted ();
+  void onGeoclueAgentErrorOccurred (QProcess::ProcessError error);
+  void onGeoclueAgentFinished (int exitCode, QProcess::ExitStatus exitStatus);
 #endif
 
 private:
@@ -159,6 +163,7 @@ private:
   };
 
   void initLocationSource ();
+  void requestLocationUpdate ();
   void fetchWeather (double latitude, double longitude);
   void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
                                 double longitude);
@@ -174,6 +179,12 @@ private:
   QString parseOpenMeteoWeatherCode (int code);
   QString parseMetNoSymbolCode (const QString &symbolCode);
   QVariantList buildCandidateServices () const;
+#ifdef QT_POSITIONING_LIB
+  void ensureGeoclueAgentForLocation ();
+  void requestPositionUpdate ();
+  void stopGeoclueAgent ();
+  QString geoclueAgentProgram () const;
+#endif
 
 private:
   QNetworkAccessManager *m_networkManager;
@@ -188,7 +199,10 @@ private:
 
 #ifdef QT_POSITIONING_LIB
   QGeoPositionInfoSource *m_positionSource;
+  QProcess *m_geoclueAgentProcess;
 #else
-  void *m_positionSource; // Placeholder when positioning not available
+  void *m_positionSource;      // Placeholder when positioning not available
+  void *m_geoclueAgentProcess; // Placeholder when positioning not available
 #endif
+  bool m_positionRequestPending;
 };
