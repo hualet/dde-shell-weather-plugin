@@ -8,9 +8,18 @@ Item {
     
     property string weatherCode: "0"
     property color iconColor: "white"
+    readonly property string iconName: getIconName(weatherCode)
+    readonly property real sourceCanvasWidth: 56
+    readonly property real sourceCanvasHeight: 48
+    // Measured from the rendered SVGs. We center the visible content, not the
+    // raw 56x48 canvas, because these assets carry asymmetric transparent pads.
+    readonly property rect trimRect: getTrimRect(iconName)
+    readonly property real scaleFactor: Math.min(width / trimRect.width,
+                                                  height / trimRect.height)
     
     implicitWidth: 48
     implicitHeight: 48
+    clip: true
     
     // Map WMO weather code to Makin-Things icon name
     function getIconName(wmoCode) {
@@ -45,17 +54,60 @@ Item {
         
         return "cloudy"
     }
+
+    function makeTrimRect(left, top, rectWidth, rectHeight) {
+        // A small padding avoids clipping strokes after scaling.
+        var padding = 0.5
+        var x = Math.max(0, left - padding)
+        var y = Math.max(0, top - padding)
+        var right = Math.min(sourceCanvasWidth, left + rectWidth + padding)
+        var bottom = Math.min(sourceCanvasHeight, top + rectHeight + padding)
+        return Qt.rect(x, y, right - x, bottom - y)
+    }
+
+    // These SVGs include significant transparent margins. Center the visible
+    // content instead of the raw 56x48 canvas to keep icon/text spacing tight.
+    function getTrimRect(name) {
+        switch (name) {
+        case "clear-day":
+            return makeTrimRect(0.5, 1, 31.5, 33)
+        case "cloudy-1-day":
+        case "cloudy-2-day":
+            return makeTrimRect(0.5, 1, 48.5, 39.5)
+        case "fog":
+            return makeTrimRect(3, 17, 49, 20.5)
+        case "rainy-1":
+            return makeTrimRect(7, 7.5, 42, 37)
+        case "rainy-2":
+            return makeTrimRect(7, 7.5, 42, 38.5)
+        case "rainy-3":
+            return makeTrimRect(7, 7.5, 42, 40.5)
+        case "snowy-1":
+        case "snowy-2":
+            return makeTrimRect(7, 7.5, 42, 38)
+        case "thunderstorms":
+            return makeTrimRect(7, 4.5, 42, 43.5)
+        case "cloudy":
+        default:
+            return makeTrimRect(7, 2.5, 42, 38)
+        }
+    }
     
     Image {
         id: weatherIcon
-        anchors.fill: parent
-        source: Qt.resolvedUrl("icons/" + getIconName(weatherCode) + ".svg")
+        width: Math.round(root.sourceCanvasWidth * root.scaleFactor)
+        height: Math.round(root.sourceCanvasHeight * root.scaleFactor)
+        // Position the full source canvas so the trimmed bounds land in the
+        // center of the WeatherIcon item.
+        x: Math.round((root.width - root.trimRect.width * root.scaleFactor) / 2
+                      - root.trimRect.x * root.scaleFactor)
+        y: Math.round((root.height - root.trimRect.height * root.scaleFactor) / 2
+                      - root.trimRect.y * root.scaleFactor)
+        source: Qt.resolvedUrl("icons/" + root.iconName + ".svg")
         fillMode: Image.PreserveAspectFit
         smooth: true
         antialiasing: true
         asynchronous: true
-        sourceSize.width: 64
-        sourceSize.height: 64
         
         onStatusChanged: {
             if (status === Image.Error) {
