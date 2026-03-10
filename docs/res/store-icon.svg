@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd. -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<svg
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg">
+  <title>DDE Shell Weather Plugin Store Icon</title>
+  <defs>
+    <linearGradient id="bg" x1="76" y1="48" x2="432" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B56D8"/>
+      <stop offset="0.54" stop-color="#1898FF"/>
+      <stop offset="1" stop-color="#7DE7FF"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(372 160) rotate(90) scale(112)">
+      <stop offset="0" stop-color="#FFE48A" stop-opacity="0.85"/>
+      <stop offset="0.62" stop-color="#FFC45C" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FFC45C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sunFill" x1="333" y1="111" x2="401" y2="209" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF2A6"/>
+      <stop offset="1" stop-color="#FF9F45"/>
+    </linearGradient>
+    <linearGradient id="cloudFill" x1="156" y1="193" x2="361" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D9EEFF"/>
+    </linearGradient>
+    <linearGradient id="rainFill" x1="206" y1="344" x2="311" y2="439" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A6F2FF"/>
+      <stop offset="1" stop-color="#2E9DFF"/>
+    </linearGradient>
+    <linearGradient id="waveFill" x1="120" y1="326" x2="420" y2="446" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#E7FBFF" stop-opacity="0.04"/>
+    </linearGradient>
+    <filter id="softShadow" x="65" y="123" width="418" height="270" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#07306E" flood-opacity="0.24"/>
+    </filter>
+    <filter id="dropShadow" x="179" y="311" width="188" height="147" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0A5CCF" flood-opacity="0.20"/>
+    </filter>
+    <clipPath id="clip">
+      <rect x="32" y="32" width="448" height="448" rx="120"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <rect x="32" y="32" width="448" height="448" rx="120" fill="url(#bg)"/>
+
+    <path
+      d="M70 122C147 71 272 51 385 88C432 104 470 130 502 164V32H32V189C42 165 54 142 70 122Z"
+      fill="white"
+      fill-opacity="0.08"/>
+
+    <path
+      d="M84 389C128 352 182 334 244 334C313 334 362 363 427 355C461 351 488 340 512 322V480H32V416C49 411 66 402 84 389Z"
+      fill="url(#waveFill)"/>
+
+    <circle cx="372" cy="160" r="112" fill="url(#sunGlow)"/>
+
+    <g stroke="#FFD266" stroke-width="12" stroke-linecap="round" opacity="0.92">
+      <path d="M367 72V90"/>
+      <path d="M367 228V246"/>
+      <path d="M289 159H307"/>
+      <path d="M427 159H445"/>
+      <path d="M314 106L326 118"/>
+      <path d="M408 200L420 212"/>
+      <path d="M314 212L326 200"/>
+      <path d="M408 118L420 106"/>
+    </g>
+
+    <circle cx="367" cy="159" r="56" fill="url(#sunFill)"/>
+    <circle cx="349" cy="141" r="16" fill="white" fill-opacity="0.20"/>
+
+    <g filter="url(#softShadow)">
+      <path
+        d="M166 348C130 348 101 319 101 283C101 250 126 222 158 218C167 174 205 142 251 142C290 142 325 165 343 198C351 195 360 193 369 193C412 193 447 228 447 271C447 314 412 349 369 349H166V348Z"
+        fill="url(#cloudFill)"/>
+      <path
+        d="M166 348C130 348 101 319 101 283C101 250 126 222 158 218C167 174 205 142 251 142C290 142 325 165 343 198C351 195 360 193 369 193C412 193 447 228 447 271C447 314 412 349 369 349H166V348Z"
+        stroke="white"
+        stroke-opacity="0.72"
+        stroke-width="12"
+        stroke-linejoin="round"/>
+    </g>
+
+    <path
+      d="M188 248C201 226 225 213 252 214"
+      stroke="white"
+      stroke-opacity="0.38"
+      stroke-width="9"
+      stroke-linecap="round"/>
+
+    <g filter="url(#dropShadow)">
+      <path
+        d="M199 380C199 360 213 345 223 331C233 345 247 360 247 380C247 399 236 412 223 412C210 412 199 399 199 380Z"
+        fill="url(#rainFill)"/>
+      <path
+        d="M249 394C249 374 263 359 273 345C283 359 297 374 297 394C297 413 286 426 273 426C260 426 249 413 249 394Z"
+        fill="url(#rainFill)"/>
+      <path
+        d="M299 380C299 360 313 345 323 331C333 345 347 360 347 380C347 399 336 412 323 412C310 412 299 399 299 380Z"
+        fill="url(#rainFill)"/>
+
+      <path
+        d="M214 359C218 352 221 347 223 343"
+        stroke="white"
+        stroke-opacity="0.45"
+        stroke-width="8"
+        stroke-linecap="round"/>
+      <path
+        d="M264 373C268 366 271 361 273 357"
+        stroke="white"
+        stroke-opacity="0.45"
+        stroke-width="8"
+        stroke-linecap="round"/>
+      <path
+        d="M314 359C318 352 321 347 323 343"
+        stroke="white"
+        stroke-opacity="0.45"
+        stroke-width="8"
+        stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
