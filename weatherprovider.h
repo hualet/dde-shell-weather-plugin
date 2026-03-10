@@ -3,102 +3,183 @@
 
 #pragma once
 
-#include <QObject>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QObject>
 #include <QTimer>
+#include <QVariantList>
 
 #ifdef QT_POSITIONING_LIB
 #include <QGeoPositionInfo>
 #include <QGeoPositionInfoSource>
 #endif
 
-struct WeatherData {
-    QString city;
-    QString weatherCode;
-    double temperature;
-    double temperatureMax;
-    double temperatureMin;
-    double humidity;
-    double windSpeed;
-    QString weatherDescription;
-    bool isValid;
-    
-    WeatherData() : temperature(0), temperatureMax(0), temperatureMin(0), humidity(0), windSpeed(0), isValid(false) {}
+struct WeatherData
+{
+  QString city;
+  QString weatherCode;
+  double temperature;
+  double temperatureMax;
+  double temperatureMin;
+  double humidity;
+  double windSpeed;
+  QString weatherDescription;
+  bool isValid;
+
+  WeatherData ()
+      : temperature (0), temperatureMax (0), temperatureMin (0), humidity (0),
+        windSpeed (0), isValid (false)
+  {
+  }
 };
 
 class WeatherProvider : public QObject
 {
-    Q_OBJECT
-    Q_PROPERTY(QString city READ city NOTIFY weatherChanged)
-    Q_PROPERTY(QString weatherCode READ weatherCode NOTIFY weatherChanged)
-    Q_PROPERTY(double temperature READ temperature NOTIFY weatherChanged)
-    Q_PROPERTY(double humidity READ humidity NOTIFY weatherChanged)
-    Q_PROPERTY(double windSpeed READ windSpeed NOTIFY weatherChanged)
-    Q_PROPERTY(QString weatherDescription READ weatherDescription NOTIFY weatherChanged)
-    Q_PROPERTY(bool isLoading READ isLoading NOTIFY loadingChanged)
-    Q_PROPERTY(bool hasError READ hasError NOTIFY errorChanged)
-    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorChanged)
-
-    Q_PROPERTY(double temperatureMax READ temperatureMax NOTIFY weatherChanged)
-    Q_PROPERTY(double temperatureMin READ temperatureMin NOTIFY weatherChanged)
+  Q_OBJECT
+  Q_PROPERTY (QString city READ city NOTIFY weatherChanged)
+  Q_PROPERTY (QString weatherCode READ weatherCode NOTIFY weatherChanged)
+  Q_PROPERTY (double temperature READ temperature NOTIFY weatherChanged)
+  Q_PROPERTY (double humidity READ humidity NOTIFY weatherChanged)
+  Q_PROPERTY (double windSpeed READ windSpeed NOTIFY weatherChanged)
+  Q_PROPERTY (
+      QString weatherDescription READ weatherDescription NOTIFY weatherChanged)
+  Q_PROPERTY (bool isLoading READ isLoading NOTIFY loadingChanged)
+  Q_PROPERTY (bool hasError READ hasError NOTIFY errorChanged)
+  Q_PROPERTY (QString errorMessage READ errorMessage NOTIFY errorChanged)
+  Q_PROPERTY (double temperatureMax READ temperatureMax NOTIFY weatherChanged)
+  Q_PROPERTY (double temperatureMin READ temperatureMin NOTIFY weatherChanged)
+  Q_PROPERTY (QString providerName READ providerName NOTIFY weatherChanged)
+  Q_PROPERTY (QVariantList candidateServices READ candidateServices CONSTANT)
 
 public:
-    explicit WeatherProvider(QObject *parent = nullptr);
-    ~WeatherProvider();
+  explicit WeatherProvider (QObject *parent = nullptr);
+  ~WeatherProvider ();
 
-    // Property getters
-    QString city() const { return m_weatherData.city; }
-    QString weatherCode() const { return m_weatherData.weatherCode; }
-    double temperature() const { return m_weatherData.temperature; }
-    double humidity() const { return m_weatherData.humidity; }
-    double windSpeed() const { return m_weatherData.windSpeed; }
-    QString weatherDescription() const { return m_weatherData.weatherDescription; }
+  // Property getters
+  QString
+  city () const
+  {
+    return m_weatherData.city;
+  }
+  QString
+  weatherCode () const
+  {
+    return m_weatherData.weatherCode;
+  }
+  double
+  temperature () const
+  {
+    return m_weatherData.temperature;
+  }
+  double
+  humidity () const
+  {
+    return m_weatherData.humidity;
+  }
+  double
+  windSpeed () const
+  {
+    return m_weatherData.windSpeed;
+  }
+  QString
+  weatherDescription () const
+  {
+    return m_weatherData.weatherDescription;
+  }
 
-    double temperatureMax() const { return m_weatherData.temperatureMax; }
-    double temperatureMin() const { return m_weatherData.temperatureMin; }
-    bool isLoading() const { return m_isLoading; }
-    bool hasError() const { return m_hasError; }
-    QString errorMessage() const { return m_errorMessage; }
+  double
+  temperatureMax () const
+  {
+    return m_weatherData.temperatureMax;
+  }
+  double
+  temperatureMin () const
+  {
+    return m_weatherData.temperatureMin;
+  }
+  bool
+  isLoading () const
+  {
+    return m_isLoading;
+  }
+  bool
+  hasError () const
+  {
+    return m_hasError;
+  }
+  QString
+  errorMessage () const
+  {
+    return m_errorMessage;
+  }
+  QString
+  providerName () const
+  {
+    return m_providerName;
+  }
+  QVariantList
+  candidateServices () const
+  {
+    return m_candidateServices;
+  }
 
-    Q_INVOKABLE void refresh();
-    Q_INVOKABLE void setLocation(double latitude, double longitude);
+  Q_INVOKABLE void refresh ();
+  Q_INVOKABLE void setLocation (double latitude, double longitude);
 
 signals:
-    void weatherChanged();
-    void loadingChanged();
-    void errorChanged();
+  void weatherChanged ();
+  void loadingChanged ();
+  void errorChanged ();
 
 private slots:
-    void onWeatherReplyFinished(QNetworkReply *reply);
-    void onCityReplyFinished(QNetworkReply *reply);
+  void onWeatherReplyFinished (QNetworkReply *reply);
+  void onCityReplyFinished (QNetworkReply *reply);
 
 #ifdef QT_POSITIONING_LIB
-    void onPositionUpdated(const QGeoPositionInfo &info);
-    void onPositionError(QGeoPositionInfoSource::Error error);
+  void onPositionUpdated (const QGeoPositionInfo &info);
+  void onPositionError (QGeoPositionInfoSource::Error error);
 #endif
 
 private:
-    void initLocationSource();
-    void fetchWeather(double latitude, double longitude);
-    void fetchCityName(double latitude, double longitude);
-    QString parseWeatherCode(int code);
+  enum class WeatherBackend
+  {
+    MetNo,
+    OpenMeteo,
+  };
+
+  void initLocationSource ();
+  void fetchWeather (double latitude, double longitude);
+  void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
+                                double longitude);
+  void fetchMetNoWeather (double latitude, double longitude);
+  void fetchOpenMeteoWeather (double latitude, double longitude);
+  void fetchCityName (double latitude, double longitude);
+  bool parseMetNoWeather (const QJsonObject &root);
+  bool parseOpenMeteoWeather (const QJsonObject &root);
+  void finishWeatherRequest ();
+  bool fallbackToNextBackend (WeatherBackend backend, double latitude,
+                              double longitude);
+  static QString backendName (WeatherBackend backend);
+  QString parseOpenMeteoWeatherCode (int code);
+  QString parseMetNoSymbolCode (const QString &symbolCode);
+  QVariantList buildCandidateServices () const;
 
 private:
-    QNetworkAccessManager *m_networkManager;
-    QTimer *m_refreshTimer;
-    
-    WeatherData m_weatherData;
-    double m_latitude;
-    double m_longitude;
-    
-    bool m_isLoading;
-    bool m_hasError;
-    QString m_errorMessage;
-    
+  QNetworkAccessManager *m_networkManager;
+  QTimer *m_refreshTimer;
+  WeatherData m_weatherData;
+  double m_latitude;
+  double m_longitude;
+  bool m_isLoading;
+  bool m_hasError;
+  QString m_errorMessage;
+  QString m_providerName;
+  QVariantList m_candidateServices;
+
 #ifdef QT_POSITIONING_LIB
-    QGeoPositionInfoSource *m_positionSource;
+  QGeoPositionInfoSource *m_positionSource;
 #else
-    void *m_positionSource; // Placeholder when positioning not available
+  void *m_positionSource; // Placeholder when positioning not available
 #endif
 };
