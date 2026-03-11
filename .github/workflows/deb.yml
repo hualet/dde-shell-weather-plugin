@@ -53,21 +53,21 @@ jobs:
           dpkg-buildpackage -us -uc -b
           mkdir -p output
           find .. -maxdepth 1 -type f \
-            \( -name '*.deb' -o -name '*.changes' -o -name '*.buildinfo' \) \
+            -name 'dde-shell-weather-plugin_*.deb' \
             -exec cp {} output/ \;
 
       - name: Upload Debian package
         uses: actions/upload-artifact@v4
         with:
-          name: debian-packages
-          path: output/*
+          name: dde-shell-weather-plugin-deb
+          path: output/dde-shell-weather-plugin_*.deb
 
       - name: Publish release assets
         if: github.event_name == 'push' || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          files: output/*
+          files: output/dde-shell-weather-plugin_*.deb
           generate_release_notes: ${{ github.event_name == 'push' }}
           overwrite_files: true
         env:
