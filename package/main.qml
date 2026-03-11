@@ -4,6 +4,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import Qt.labs.platform 1.1 as LP
 import org.deepin.ds 1.0
 import org.deepin.ds.dock 1.0
 
@@ -18,6 +19,20 @@ AppletItem {
     
     implicitWidth: useColumnLayout ? dockSize : 180
     implicitHeight: dockSize
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        preventStealing: true
+        onClicked: function(mouse) {
+            locationMenuLoader.active = true
+            locationMenuLoader.item.open()
+            mouse.accepted = true
+        }
+        onPressed: function(mouse) {
+            mouse.accepted = true
+        }
+    }
     
     // Loading indicator
     BusyIndicator {
@@ -128,5 +143,18 @@ AppletItem {
         id: themeColors
         readonly property color text: Qt.rgba(1, 1, 1, 0.9)
         readonly property color icon: Qt.rgba(1, 1, 1, 0.95)
+    }
+
+    Loader {
+        id: locationMenuLoader
+        active: false
+        sourceComponent: LP.Menu {
+            LP.MenuItem {
+                text: qsTr("Location Settings")
+                onTriggered: {
+                    Applet.showSettings()
+                }
+            }
+        }
     }
 }

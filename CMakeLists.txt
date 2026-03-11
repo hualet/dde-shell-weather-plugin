@@ -11,13 +11,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find required packages
-find_package(Qt6 REQUIRED COMPONENTS Core LinguistTools Network Quick QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Core LinguistTools Network Quick QuickControls2 Widgets)
 find_package(Qt6 OPTIONAL_COMPONENTS Positioning Location)
 find_package(Dtk6 REQUIRED COMPONENTS Core Widget)
 find_package(DDEShell REQUIRED)
 
 # Create plugin library
 add_library(ds-weather-applet SHARED
+    src/locationsettingsdialog.h
+    src/locationsettingsdialog.cpp
     src/weatherapplet.h
     src/weatherapplet.cpp
     src/weatherprovider.h
@@ -34,6 +36,7 @@ target_link_libraries(ds-weather-applet PRIVATE
     Qt6::Network
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::Widgets
     Dtk6::Core
     Dtk6::Widget
 )

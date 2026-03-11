@@ -7,6 +7,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
 #include <QVariantList>
 
@@ -65,6 +66,15 @@ class WeatherProvider : public QObject
 public:
   explicit WeatherProvider (QObject *parent = nullptr);
   ~WeatherProvider ();
+
+  void initialize ();
+  void restoreLocationPreference (bool autoLocationEnabled,
+                                  const QString &manualCity,
+                                  double manualLatitude,
+                                  double manualLongitude);
+  void setLocationPreference (bool autoLocationEnabled,
+                              const QString &manualCity, double manualLatitude,
+                              double manualLongitude);
 
   // Property getters
   QString
@@ -134,18 +144,34 @@ public:
   QString formattedWindSpeed () const;
   QString temperatureUnit () const;
   QString windSpeedUnit () const;
+  bool autoLocationEnabled () const;
+  QString manualLocationCity () const;
+  double manualLocationLatitude () const;
+  double manualLocationLongitude () const;
+  QString autoLocationCity () const;
+  QVariantList citySuggestions () const;
+  bool isSearchingCities () const;
 
   Q_INVOKABLE void refresh ();
   Q_INVOKABLE void setLocation (double latitude, double longitude);
+  Q_INVOKABLE void searchCities (const QString &query);
+  Q_INVOKABLE void requestLocationPreview ();
 
 signals:
   void weatherChanged ();
   void loadingChanged ();
   void errorChanged ();
+  void locationPreferenceChanged ();
+  void citySuggestionsChanged ();
+  void locationPreviewStarted ();
+  void locationPreviewResolved (const QString &city, double latitude,
+                                double longitude);
+  void locationPreviewFailed (const QString &message);
 
 private slots:
   void onWeatherReplyFinished (QNetworkReply *reply);
   void onCityReplyFinished (QNetworkReply *reply);
+  void onCitySearchReplyFinished (QNetworkReply *reply);
   void onIpLocationReplyFinished (QNetworkReply *reply);
 
 #ifdef QT_POSITIONING_LIB
@@ -163,6 +189,12 @@ private:
     OpenMeteo,
   };
 
+  enum class LocationLookupPurpose
+  {
+    WeatherUpdate,
+    PreviewSelection,
+  };
+
   enum class LocationBackend
   {
 #ifdef QT_POSITIONING_LIB
@@ -172,6 +204,7 @@ private:
     DefaultLocation,
   };
 
+  void startLocationLookup (LocationLookupPurpose purpose);
   void initLocationSource ();
   void requestLocationUpdate ();
   void fetchLocationFromIp (const QString &reason);
@@ -179,11 +212,17 @@ private:
   void fetchWeather (double latitude, double longitude);
   void updateLocation (double latitude, double longitude,
                        const QString &resolvedCity);
+  void handleResolvedLocation (double latitude, double longitude,
+                               const QString &resolvedCity);
+  void updateAutoLocationCache (double latitude, double longitude,
+                                const QString &city);
   void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
                                 double longitude);
   void fetchMetNoWeather (double latitude, double longitude);
   void fetchOpenMeteoWeather (double latitude, double longitude);
-  void fetchCityName (double latitude, double longitude);
+  void fetchCityName (double latitude, double longitude,
+                      LocationLookupPurpose purpose, quint64 requestSerial);
+  bool hasManualLocationPreference () const;
   bool parseIpLocation (const QJsonObject &root, double *latitude,
                         double *longitude) const;
   bool parseMetNoWeather (const QJsonObject &root);
@@ -214,6 +253,20 @@ private:
   bool m_hasError;
   QString m_errorMessage;
   QString m_providerName;
+  bool m_initialized;
+  bool m_autoLocationEnabled;
+  QString m_manualCity;
+  double m_manualLatitude;
+  double m_manualLongitude;
+  QString m_lastAutoCity;
+  double m_lastAutoLatitude;
+  double m_lastAutoLongitude;
+  QVariantList m_citySuggestions;
+  QPointer<QNetworkReply> m_citySearchReply;
+  bool m_isSearchingCities;
+  quint64 m_citySearchRequestSerial;
+  LocationLookupPurpose m_locationLookupPurpose;
+  quint64 m_locationRequestSerial;
 
 #ifdef QT_POSITIONING_LIB
   QGeoPositionInfoSource *m_positionSource;

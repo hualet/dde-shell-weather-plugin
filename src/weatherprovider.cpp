@@ -287,7 +287,13 @@ WeatherProvider::WeatherProvider (QObject *parent)
     : QObject (parent), m_networkManager (new QNetworkAccessManager (this)),
       m_refreshTimer (new QTimer (this)), m_latitude (0), m_longitude (0),
       m_isLoading (false), m_hasError (false),
-      m_providerName (tr ("MET Norway")), m_positionSource (nullptr),
+      m_providerName (tr ("MET Norway")), m_initialized (false),
+      m_autoLocationEnabled (true), m_manualLatitude (0),
+      m_manualLongitude (0), m_lastAutoLatitude (0), m_lastAutoLongitude (0),
+      m_citySearchReply (nullptr), m_isSearchingCities (false),
+      m_citySearchRequestSerial (0),
+      m_locationLookupPurpose (LocationLookupPurpose::WeatherUpdate),
+      m_locationRequestSerial (0), m_positionSource (nullptr),
       m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
       m_geoclueAgentStopRequested (false), m_positionRequestPending (false),
       m_locationLookupInProgress (false), m_ipLocationRequestPending (false)
@@ -311,11 +317,15 @@ WeatherProvider::WeatherProvider (QObject *parent)
   m_refreshTimer->start (30 * 60 * 1000);
 
   // Initialize location source
-  initLocationSource ();
 }
 
 WeatherProvider::~WeatherProvider ()
 {
+  if (m_citySearchReply)
+    {
+      m_citySearchReply->abort ();
+    }
+
 #ifdef QT_POSITIONING_LIB
   stopGeoclueAgent ();
   if (m_positionSource)
@@ -323,6 +333,132 @@ WeatherProvider::~WeatherProvider ()
       m_positionSource->stopUpdates ();
     }
 #endif
+}
+
+void
+WeatherProvider::initialize ()
+{
+  if (m_initialized)
+    {
+      return;
+    }
+
+  m_initialized = true;
+  initLocationSource ();
+
+  if (!m_autoLocationEnabled && hasManualLocationPreference ())
+    {
+      ++m_locationRequestSerial;
+      updateLocation (m_manualLatitude, m_manualLongitude, m_manualCity);
+      return;
+    }
+
+  requestLocationUpdate ();
+}
+
+void
+WeatherProvider::restoreLocationPreference (bool autoLocationEnabled,
+                                            const QString &manualCity,
+                                            double manualLatitude,
+                                            double manualLongitude)
+{
+  m_autoLocationEnabled = autoLocationEnabled;
+  m_manualCity = manualCity.trimmed ();
+  m_manualLatitude = manualLatitude;
+  m_manualLongitude = manualLongitude;
+
+  emit locationPreferenceChanged ();
+}
+
+void
+WeatherProvider::setLocationPreference (bool autoLocationEnabled,
+                                        const QString &manualCity,
+                                        double manualLatitude,
+                                        double manualLongitude)
+{
+  const QString normalizedManualCity = manualCity.trimmed ();
+  const bool changed
+      = m_autoLocationEnabled != autoLocationEnabled
+        || m_manualCity != normalizedManualCity
+        || !qFuzzyCompare (m_manualLatitude + 1.0, manualLatitude + 1.0)
+        || !qFuzzyCompare (m_manualLongitude + 1.0, manualLongitude + 1.0);
+
+  m_autoLocationEnabled = autoLocationEnabled;
+  m_manualCity = normalizedManualCity;
+  m_manualLatitude = manualLatitude;
+  m_manualLongitude = manualLongitude;
+
+  if (changed)
+    {
+      emit locationPreferenceChanged ();
+    }
+
+  if (!m_initialized)
+    {
+      return;
+    }
+
+  ++m_locationRequestSerial;
+
+  if (!m_autoLocationEnabled && hasManualLocationPreference ())
+    {
+      updateLocation (m_manualLatitude, m_manualLongitude, m_manualCity);
+      return;
+    }
+
+  requestLocationUpdate ();
+}
+
+bool
+WeatherProvider::autoLocationEnabled () const
+{
+  return m_autoLocationEnabled;
+}
+
+QString
+WeatherProvider::manualLocationCity () const
+{
+  return m_manualCity;
+}
+
+double
+WeatherProvider::manualLocationLatitude () const
+{
+  return m_manualLatitude;
+}
+
+double
+WeatherProvider::manualLocationLongitude () const
+{
+  return m_manualLongitude;
+}
+
+QString
+WeatherProvider::autoLocationCity () const
+{
+  if (!m_lastAutoCity.isEmpty ())
+    {
+      return m_lastAutoCity;
+    }
+
+  if (m_autoLocationEnabled)
+    {
+      return m_weatherData.city;
+    }
+
+  return QString ();
+}
+
+QVariantList
+WeatherProvider::citySuggestions () const
+{
+  return m_citySuggestions;
+}
+
+bool
+WeatherProvider::isSearchingCities () const
+{
+  return m_isSearchingCities;
 }
 
 void
@@ -351,8 +487,6 @@ WeatherProvider::initLocationSource ()
   qInfo () << "Qt Positioning not available at build time, using IP location "
               "fallback";
 #endif
-
-  requestLocationUpdate ();
 }
 
 void
@@ -360,7 +494,14 @@ WeatherProvider::refresh ()
 {
   qInfo () << "Weather refresh requested"
            << "latitude=" << m_latitude << "longitude=" << m_longitude
-           << "loading=" << m_isLoading;
+           << "loading=" << m_isLoading
+           << "autoLocationEnabled=" << m_autoLocationEnabled;
+
+  if (m_autoLocationEnabled)
+    {
+      requestLocationUpdate ();
+      return;
+    }
 
   if (m_latitude != 0 && m_longitude != 0)
     {
@@ -375,7 +516,111 @@ WeatherProvider::refresh ()
 void
 WeatherProvider::setLocation (double latitude, double longitude)
 {
+  ++m_locationRequestSerial;
   updateLocation (latitude, longitude, QString ());
+}
+
+void
+WeatherProvider::searchCities (const QString &query)
+{
+  const QString trimmedQuery = query.trimmed ();
+  const quint64 requestSerial = ++m_citySearchRequestSerial;
+
+  if (trimmedQuery.size () < 2)
+    {
+      m_isSearchingCities = false;
+      if (!m_citySuggestions.isEmpty ())
+        {
+          m_citySuggestions.clear ();
+          emit citySuggestionsChanged ();
+        }
+      return;
+    }
+
+  QUrl url ("https://geocoding-api.open-meteo.com/v1/search");
+  QUrlQuery urlQuery;
+  urlQuery.addQueryItem ("name", trimmedQuery);
+  urlQuery.addQueryItem ("count", QStringLiteral ("8"));
+  urlQuery.addQueryItem ("language", uiLanguageCode ());
+  urlQuery.addQueryItem ("format", QStringLiteral ("json"));
+  url.setQuery (urlQuery);
+
+  qInfo () << "City search request start"
+           << "query=" << trimmedQuery << "url=" << url.toString ();
+
+  QNetworkRequest request (url);
+  request.setRawHeader (
+      "User-Agent",
+      "dde-shell-weather-plugin/1.0 "
+      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
+  request.setRawHeader ("Accept", "application/json");
+
+  QNetworkReply *reply = m_networkManager->get (request);
+  reply->setProperty ("requestStartedAt", nowMs ());
+  reply->setProperty ("query", trimmedQuery);
+  reply->setProperty ("searchSerial", static_cast<qulonglong> (requestSerial));
+  m_citySearchReply = reply;
+  m_isSearchingCities = true;
+
+  connect (reply, &QNetworkReply::finished, this,
+           [this, reply] () { onCitySearchReplyFinished (reply); });
+}
+
+void
+WeatherProvider::requestLocationPreview ()
+{
+  startLocationLookup (LocationLookupPurpose::PreviewSelection);
+}
+
+void
+WeatherProvider::startLocationLookup (LocationLookupPurpose purpose)
+{
+  if (m_locationLookupInProgress || m_ipLocationRequestPending)
+    {
+      qInfo () << "Location lookup already in progress";
+      if (purpose == LocationLookupPurpose::PreviewSelection)
+        {
+          emit locationPreviewFailed (
+              tr ("Location lookup already in progress"));
+        }
+      return;
+    }
+
+  ++m_locationRequestSerial;
+  m_locationLookupPurpose = purpose;
+  m_locationLookupInProgress = false;
+
+  if (purpose == LocationLookupPurpose::PreviewSelection)
+    {
+      emit locationPreviewStarted ();
+    }
+
+  m_locationLookupInProgress = true;
+
+#ifdef QT_POSITIONING_LIB
+  if (m_positionSource)
+    {
+      if (m_positionRequestPending)
+        {
+          qInfo () << "Position request already pending";
+          return;
+        }
+
+      m_positionRequestPending = true;
+      qInfo () << "Location lookup start"
+               << "backend="
+               << locationBackendName (LocationBackend::QtPositioning)
+               << "purpose=" << static_cast<int> (purpose)
+               << "source=" << m_positionSource->sourceName ();
+      ensureGeoclueAgentForLocation ();
+      return;
+    }
+
+  fallbackToIpLocation (QStringLiteral ("qt-source-unavailable"));
+#else
+  fetchLocationFromIp (
+      QStringLiteral ("qt-positioning-disabled-at-build-time"));
+#endif
 }
 
 void
@@ -396,6 +641,10 @@ WeatherProvider::updateLocation (double latitude, double longitude,
   if (!resolvedCity.isEmpty ())
     {
       m_weatherData.city = resolvedCity;
+      if (m_autoLocationEnabled)
+        {
+          updateAutoLocationCache (latitude, longitude, resolvedCity);
+        }
       qInfo () << "Location city updated"
                << "backend="
                << locationBackendName (LocationBackend::IpGeolocation)
@@ -406,8 +655,85 @@ WeatherProvider::updateLocation (double latitude, double longitude,
   fetchWeather (latitude, longitude);
   if (resolvedCity.isEmpty ())
     {
-      fetchCityName (latitude, longitude);
+      fetchCityName (latitude, longitude, LocationLookupPurpose::WeatherUpdate,
+                     m_locationRequestSerial);
     }
+}
+
+void
+WeatherProvider::handleResolvedLocation (double latitude, double longitude,
+                                         const QString &resolvedCity)
+{
+  if (m_locationLookupPurpose == LocationLookupPurpose::PreviewSelection)
+    {
+      m_locationLookupInProgress = false;
+
+#ifdef QT_POSITIONING_LIB
+      stopGeoclueAgent ();
+#endif
+
+      const QString previewCity = resolvedCity.trimmed ();
+      if (!previewCity.isEmpty ())
+        {
+          updateAutoLocationCache (latitude, longitude, previewCity);
+          emit locationPreviewResolved (previewCity, latitude, longitude);
+          return;
+        }
+
+      fetchCityName (latitude, longitude,
+                     LocationLookupPurpose::PreviewSelection,
+                     m_locationRequestSerial);
+      return;
+    }
+
+  updateLocation (latitude, longitude, resolvedCity);
+}
+
+void
+WeatherProvider::updateAutoLocationCache (double latitude, double longitude,
+                                          const QString &city)
+{
+  const QString normalizedCity = city.trimmed ();
+  if (normalizedCity.isEmpty ())
+    {
+      return;
+    }
+
+  const bool changed
+      = m_lastAutoCity != normalizedCity
+        || !qFuzzyCompare (m_lastAutoLatitude + 1.0, latitude + 1.0)
+        || !qFuzzyCompare (m_lastAutoLongitude + 1.0, longitude + 1.0);
+
+  m_lastAutoCity = normalizedCity;
+  m_lastAutoLatitude = latitude;
+  m_lastAutoLongitude = longitude;
+
+  if (changed)
+    {
+      emit locationPreferenceChanged ();
+    }
+}
+
+bool
+WeatherProvider::hasManualLocationPreference () const
+{
+  if (m_manualCity.trimmed ().isEmpty ())
+    {
+      return false;
+    }
+
+  if (!std::isfinite (m_manualLatitude) || !std::isfinite (m_manualLongitude))
+    {
+      return false;
+    }
+
+  if (m_manualLatitude < -90.0 || m_manualLatitude > 90.0
+      || m_manualLongitude < -180.0 || m_manualLongitude > 180.0)
+    {
+      return false;
+    }
+
+  return true;
 }
 
 #ifdef QT_POSITIONING_LIB
@@ -447,7 +773,7 @@ WeatherProvider::onPositionUpdated (const QGeoPositionInfo &info)
            << "latitude=" << coord.latitude ()
            << "longitude=" << coord.longitude ()
            << "horizontalAccuracy=" << horizontalAccuracy;
-  setLocation (coord.latitude (), coord.longitude ());
+  handleResolvedLocation (coord.latitude (), coord.longitude (), QString ());
 }
 
 void
@@ -523,43 +849,7 @@ WeatherProvider::onGeoclueAgentFinished (int exitCode,
 void
 WeatherProvider::requestLocationUpdate ()
 {
-  if (m_locationLookupInProgress)
-    {
-      qInfo () << "Location lookup already in progress";
-      return;
-    }
-
-  if (m_ipLocationRequestPending)
-    {
-      qInfo () << "IP geolocation request already pending";
-      return;
-    }
-
-  m_locationLookupInProgress = true;
-
-#ifdef QT_POSITIONING_LIB
-  if (m_positionSource)
-    {
-      if (m_positionRequestPending)
-        {
-          qInfo () << "Position request already pending";
-          return;
-        }
-
-      m_positionRequestPending = true;
-      qInfo () << "Location lookup start"
-               << "backend="
-               << locationBackendName (LocationBackend::QtPositioning)
-               << "source=" << m_positionSource->sourceName ();
-      ensureGeoclueAgentForLocation ();
-      return;
-    }
-
-  fallbackToIpLocation (QStringLiteral ("qt-source-unavailable"));
-#else
-  fetchLocationFromIp (
-      QStringLiteral ("qt-positioning-disabled-at-build-time"));
-#endif
+  startLocationLookup (LocationLookupPurpose::WeatherUpdate);
 }
 
 void
@@ -697,7 +987,9 @@ WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
 }
 
 void
-WeatherProvider::fetchCityName (double latitude, double longitude)
+WeatherProvider::fetchCityName (double latitude, double longitude,
+                                LocationLookupPurpose purpose,
+                                quint64 requestSerial)
 {
   // Use BigData Cloud free reverse geocoding API (no auth required)
   QUrl url ("https://api.bigdatacloud.net/data/reverse-geocode-client");
@@ -714,6 +1006,11 @@ WeatherProvider::fetchCityName (double latitude, double longitude)
   QNetworkRequest request (url);
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("requestStartedAt", nowMs ());
+  reply->setProperty ("latitude", latitude);
+  reply->setProperty ("longitude", longitude);
+  reply->setProperty ("locationPurpose", static_cast<int> (purpose));
+  reply->setProperty ("requestSerial",
+                      static_cast<qulonglong> (requestSerial));
 
   connect (reply, &QNetworkReply::finished, this,
            [this, reply] () { onCityReplyFinished (reply); });
@@ -812,6 +1109,12 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
 void
 WeatherProvider::onCityReplyFinished (QNetworkReply *reply)
 {
+  const double latitude = reply->property ("latitude").toDouble ();
+  const double longitude = reply->property ("longitude").toDouble ();
+  const quint64 requestSerial
+      = reply->property ("requestSerial").toULongLong ();
+  const LocationLookupPurpose purpose = static_cast<LocationLookupPurpose> (
+      reply->property ("locationPurpose").toInt ());
   const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
   const qint64 elapsedMs = startedAt > 0 ? nowMs () - startedAt : -1;
   const QVariant httpStatus
@@ -823,12 +1126,32 @@ WeatherProvider::onCityReplyFinished (QNetworkReply *reply)
 
   reply->deleteLater ();
 
+  if (requestSerial != 0 && requestSerial != m_locationRequestSerial)
+    {
+      qInfo () << "Ignoring stale city reply"
+               << "replySerial=" << requestSerial
+               << "currentSerial=" << m_locationRequestSerial;
+      return;
+    }
+
   if (reply->error () != QNetworkReply::NoError)
     {
       qWarning () << "City API error"
                   << "elapsedMs=" << elapsedMs
                   << "message=" << reply->errorString ();
-      m_weatherData.city = tr ("Unknown");
+      const QString unknownCity = tr ("Unknown");
+      if (purpose == LocationLookupPurpose::PreviewSelection)
+        {
+          updateAutoLocationCache (latitude, longitude, unknownCity);
+          emit locationPreviewResolved (unknownCity, latitude, longitude);
+          return;
+        }
+
+      m_weatherData.city = unknownCity;
+      if (m_autoLocationEnabled)
+        {
+          updateAutoLocationCache (latitude, longitude, m_weatherData.city);
+        }
       emit weatherChanged ();
       return;
     }
@@ -848,10 +1171,115 @@ WeatherProvider::onCityReplyFinished (QNetworkReply *reply)
       city = root["principalSubdivision"].toString ();
     }
 
-  m_weatherData.city = city.isEmpty () ? tr ("Unknown") : city;
+  const QString resolvedCity = city.isEmpty () ? tr ("Unknown") : city;
   qInfo () << "City parse success"
-           << "city=" << m_weatherData.city << "elapsedMs=" << elapsedMs;
+           << "city=" << resolvedCity << "elapsedMs=" << elapsedMs;
+
+  if (purpose == LocationLookupPurpose::PreviewSelection)
+    {
+      updateAutoLocationCache (latitude, longitude, resolvedCity);
+      emit locationPreviewResolved (resolvedCity, latitude, longitude);
+      return;
+    }
+
+  m_weatherData.city = resolvedCity;
+  if (m_autoLocationEnabled)
+    {
+      updateAutoLocationCache (latitude, longitude, m_weatherData.city);
+    }
   emit weatherChanged ();
+}
+
+void
+WeatherProvider::onCitySearchReplyFinished (QNetworkReply *reply)
+{
+  const quint64 requestSerial
+      = reply->property ("searchSerial").toULongLong ();
+  const bool isLatestReply = requestSerial == m_citySearchRequestSerial;
+
+  if (reply == m_citySearchReply)
+    {
+      m_citySearchReply = nullptr;
+    }
+
+  const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
+  const qint64 elapsedMs = startedAt > 0 ? nowMs () - startedAt : -1;
+  const QString query = reply->property ("query").toString ();
+  const QVariant httpStatus
+      = reply->attribute (QNetworkRequest::HttpStatusCodeAttribute);
+
+  qInfo () << "City search request finished"
+           << "query=" << query << "elapsedMs=" << elapsedMs
+           << "httpStatus=" << httpStatus
+           << "networkError=" << reply->error ();
+
+  if (!isLatestReply)
+    {
+      qInfo () << "Ignoring stale city search reply"
+               << "replySerial=" << requestSerial
+               << "currentSerial=" << m_citySearchRequestSerial;
+      reply->deleteLater ();
+      return;
+    }
+
+  m_isSearchingCities = false;
+
+  QVariantList suggestions;
+
+  if (reply->error () == QNetworkReply::NoError)
+    {
+      const QJsonDocument doc = QJsonDocument::fromJson (reply->readAll ());
+      const QJsonArray results = doc.object ()["results"].toArray ();
+
+      for (const QJsonValue &value : results)
+        {
+          const QJsonObject item = value.toObject ();
+          const QString name = item["name"].toString ().trimmed ();
+          if (name.isEmpty ())
+            {
+              continue;
+            }
+
+          const QString admin1 = item["admin1"].toString ().trimmed ();
+          const QString country = item["country"].toString ().trimmed ();
+
+          QString shortName = name;
+          if (!admin1.isEmpty () && admin1 != name)
+            {
+              shortName += QStringLiteral (", ") + admin1;
+            }
+
+          QString displayName = shortName;
+          if (!country.isEmpty () && country != admin1 && country != name)
+            {
+              displayName += QStringLiteral (", ") + country;
+            }
+
+          suggestions.append (QVariantMap{
+              { "name", name },
+              { "shortName", shortName },
+              { "displayName", displayName },
+              { "latitude", item["latitude"].toDouble () },
+              { "longitude", item["longitude"].toDouble () },
+              { "country", country },
+              { "admin1", admin1 },
+          });
+        }
+    }
+  else if (reply->error () != QNetworkReply::OperationCanceledError)
+    {
+      qWarning () << "City search failed"
+                  << "query=" << query << "elapsedMs=" << elapsedMs
+                  << "message=" << reply->errorString ();
+    }
+
+  reply->deleteLater ();
+
+  if (m_citySuggestions != suggestions)
+    {
+      m_citySuggestions = suggestions;
+      emit citySuggestionsChanged ();
+    }
 }
 
 void
@@ -928,7 +1356,7 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
            << locationBackendName (LocationBackend::IpGeolocation)
            << "latitude=" << latitude << "longitude=" << longitude
            << "city=" << city << "elapsedMs=" << elapsedMs;
-  updateLocation (latitude, longitude, city);
+  handleResolvedLocation (latitude, longitude, city);
 }
 
 bool
@@ -1518,6 +1946,18 @@ void
 WeatherProvider::useDefaultLocation (const QString &reason)
 {
   m_locationLookupInProgress = false;
+
+#ifdef QT_POSITIONING_LIB
+  stopGeoclueAgent ();
+#endif
+
+  if (m_locationLookupPurpose == LocationLookupPurpose::PreviewSelection)
+    {
+      qWarning () << "Location preview failed"
+                  << "reason=" << reason;
+      emit locationPreviewFailed (tr ("Failed to get location"));
+      return;
+    }
 
   qWarning () << "Location backend fallback"
               << "from="
