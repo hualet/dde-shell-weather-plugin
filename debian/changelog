@@ -1,3 +1,11 @@
+dde-shell-weather-plugin (1.0.3-1) unstable; urgency=medium
+
+  * Switch IP fallback geolocation to ip-api and reuse its city name.
+  * Send the locale-mapped lang parameter to ip-api requests.
+  * Bump upstream version to 1.0.3.
+
+ -- Deepin Packages Builder <packages@deepin.org>  Wed, 11 Mar 2026 14:16:44 +0800
+
 dde-shell-weather-plugin (1.0.2-1) unstable; urgency=medium
 
   * Start a GeoClue agent before requesting location and stop it after the
