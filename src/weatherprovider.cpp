@@ -172,6 +172,50 @@ uiLanguageCode ()
   return localeName;
 }
 
+QString
+ipApiLanguageCodeForLocale (const QLocale &locale)
+{
+  switch (locale.language ())
+    {
+    case QLocale::German:
+      return QStringLiteral ("de");
+    case QLocale::Spanish:
+      return QStringLiteral ("es");
+    case QLocale::Portuguese:
+      return QStringLiteral ("pt-BR");
+    case QLocale::French:
+      return QStringLiteral ("fr");
+    case QLocale::Japanese:
+      return QStringLiteral ("ja");
+    case QLocale::Chinese:
+      return QStringLiteral ("zh-CN");
+    case QLocale::Russian:
+      return QStringLiteral ("ru");
+    default:
+      return QStringLiteral ("en");
+    }
+}
+
+QString
+ipApiLanguageCode ()
+{
+  const QLocale locale = formatLocale ();
+  const QStringList uiLanguages = locale.uiLanguages ();
+
+  for (const QString &uiLanguage : uiLanguages)
+    {
+      const QLocale uiLocale (uiLanguage);
+      if (uiLocale.language () == QLocale::C)
+        {
+          continue;
+        }
+
+      return ipApiLanguageCodeForLocale (uiLocale);
+    }
+
+  return ipApiLanguageCodeForLocale (locale);
+}
+
 bool
 jsonValueToDouble (const QJsonValue &value, double *result)
 {
@@ -331,6 +375,13 @@ WeatherProvider::refresh ()
 void
 WeatherProvider::setLocation (double latitude, double longitude)
 {
+  updateLocation (latitude, longitude, QString ());
+}
+
+void
+WeatherProvider::updateLocation (double latitude, double longitude,
+                                 const QString &resolvedCity)
+{
   m_locationLookupInProgress = false;
 
 #ifdef QT_POSITIONING_LIB
@@ -342,8 +393,21 @@ WeatherProvider::setLocation (double latitude, double longitude)
 
   m_latitude = latitude;
   m_longitude = longitude;
+  if (!resolvedCity.isEmpty ())
+    {
+      m_weatherData.city = resolvedCity;
+      qInfo () << "Location city updated"
+               << "backend="
+               << locationBackendName (LocationBackend::IpGeolocation)
+               << "city=" << m_weatherData.city;
+      emit weatherChanged ();
+    }
+
   fetchWeather (latitude, longitude);
-  fetchCityName (latitude, longitude);
+  if (resolvedCity.isEmpty ())
+    {
+      fetchCityName (latitude, longitude);
+    }
 }
 
 #ifdef QT_POSITIONING_LIB
@@ -507,9 +571,11 @@ WeatherProvider::fetchLocationFromIp (const QString &reason)
       return;
     }
 
-  QUrl url ("https://api.bigdatacloud.net/data/reverse-geocode-client");
+  QUrl url ("http://ip-api.com/json/");
   QUrlQuery query;
-  query.addQueryItem ("localityLanguage", uiLanguageCode ());
+  query.addQueryItem ("fields", "status,message,city,regionName,country,lat,"
+                                "lon");
+  query.addQueryItem ("lang", ipApiLanguageCode ());
   url.setQuery (query);
 
   qInfo () << "Location lookup start"
@@ -824,6 +890,17 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
 
   const QJsonDocument doc = QJsonDocument::fromJson (data);
   const QJsonObject root = doc.object ();
+  const QString status = root["status"].toString ();
+  if (status == QStringLiteral ("fail"))
+    {
+      const QString message = root["message"].toString ();
+      qWarning () << "IP geolocation request rejected"
+                  << "elapsedMs=" << elapsedMs << "reason=" << reason
+                  << "message=" << message;
+      useDefaultLocation (QStringLiteral ("ip-api-failed:%1").arg (message));
+      return;
+    }
+
   double latitude = 0;
   double longitude = 0;
 
@@ -831,18 +908,27 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
     {
       qWarning () << "IP geolocation payload missing usable coordinates"
                   << "elapsedMs=" << elapsedMs << "reason=" << reason
-                  << "lookupSource=" << root["lookupSource"].toString ();
+                  << "status=" << status;
       useDefaultLocation (QStringLiteral ("ip-invalid-payload"));
       return;
+    }
+
+  QString city = root["city"].toString ().trimmed ();
+  if (city.isEmpty ())
+    {
+      city = root["regionName"].toString ().trimmed ();
+    }
+  if (city.isEmpty ())
+    {
+      city = root["country"].toString ().trimmed ();
     }
 
   qInfo () << "Location lookup success"
            << "backend="
            << locationBackendName (LocationBackend::IpGeolocation)
            << "latitude=" << latitude << "longitude=" << longitude
-           << "lookupSource=" << root["lookupSource"].toString ()
-           << "elapsedMs=" << elapsedMs;
-  setLocation (latitude, longitude);
+           << "city=" << city << "elapsedMs=" << elapsedMs;
+  updateLocation (latitude, longitude, city);
 }
 
 bool
@@ -854,8 +940,15 @@ WeatherProvider::parseIpLocation (const QJsonObject &root, double *latitude,
       return false;
     }
 
-  if (!jsonValueToDouble (root["latitude"], latitude)
-      || !jsonValueToDouble (root["longitude"], longitude))
+  bool hasCoordinates = jsonValueToDouble (root["lat"], latitude)
+                        && jsonValueToDouble (root["lon"], longitude);
+  if (!hasCoordinates)
+    {
+      hasCoordinates = jsonValueToDouble (root["latitude"], latitude)
+                       && jsonValueToDouble (root["longitude"], longitude);
+    }
+
+  if (!hasCoordinates)
     {
       return false;
     }

@@ -177,6 +177,8 @@ private:
   void fetchLocationFromIp (const QString &reason);
   void useDefaultLocation (const QString &reason);
   void fetchWeather (double latitude, double longitude);
+  void updateLocation (double latitude, double longitude,
+                       const QString &resolvedCity);
   void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
                                 double longitude);
   void fetchMetNoWeather (double latitude, double longitude);
