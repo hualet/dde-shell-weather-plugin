@@ -11,6 +11,7 @@
 #include <QLocale>
 #include <QNetworkRequest>
 #include <QUrlQuery>
+#include <cmath>
 
 #ifdef QT_POSITIONING_LIB
 #include <QGeoPositionInfoSource>
@@ -171,7 +172,55 @@ uiLanguageCode ()
   return localeName;
 }
 
+bool
+jsonValueToDouble (const QJsonValue &value, double *result)
+{
+  if (!result)
+    {
+      return false;
+    }
+
+  if (value.isDouble ())
+    {
+      *result = value.toDouble ();
+      return true;
+    }
+
+  if (value.isString ())
+    {
+      bool ok = false;
+      const double parsed = value.toString ().toDouble (&ok);
+      if (ok)
+        {
+          *result = parsed;
+          return true;
+        }
+    }
+
+  return false;
+}
+
 #ifdef QT_POSITIONING_LIB
+QString
+positionErrorName (QGeoPositionInfoSource::Error error)
+{
+  switch (error)
+    {
+    case QGeoPositionInfoSource::NoError:
+      return QStringLiteral ("NoError");
+    case QGeoPositionInfoSource::AccessError:
+      return QStringLiteral ("AccessError");
+    case QGeoPositionInfoSource::ClosedError:
+      return QStringLiteral ("ClosedError");
+    case QGeoPositionInfoSource::UnknownSourceError:
+      return QStringLiteral ("UnknownSourceError");
+    case QGeoPositionInfoSource::UpdateTimeoutError:
+      return QStringLiteral ("UpdateTimeoutError");
+    }
+
+  return QStringLiteral ("UnknownError");
+}
+
 void
 logGeoclueAgentOutput (QProcess *process)
 {
@@ -195,11 +244,15 @@ WeatherProvider::WeatherProvider (QObject *parent)
       m_refreshTimer (new QTimer (this)), m_latitude (0), m_longitude (0),
       m_isLoading (false), m_hasError (false),
       m_providerName (tr ("MET Norway")), m_positionSource (nullptr),
-      m_geoclueAgentProcess (nullptr), m_positionRequestPending (false)
+      m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
+      m_geoclueAgentStopRequested (false), m_positionRequestPending (false),
+      m_locationLookupInProgress (false), m_ipLocationRequestPending (false)
 {
 #ifdef QT_POSITIONING_LIB
   m_geoclueAgentProcess = new QProcess (this);
   m_geoclueAgentProcess->setProcessChannelMode (QProcess::MergedChannels);
+  connect (m_geoclueAgentProcess, &QProcess::readyReadStandardOutput, this,
+           [this] () { logGeoclueAgentOutput (m_geoclueAgentProcess); });
   connect (m_geoclueAgentProcess, &QProcess::started, this,
            &WeatherProvider::onGeoclueAgentStarted);
   connect (m_geoclueAgentProcess, &QProcess::errorOccurred, this,
@@ -236,19 +289,26 @@ WeatherProvider::initLocationSource ()
 
   if (m_positionSource)
     {
+      qInfo () << "Location backend initialized"
+               << "backend="
+               << locationBackendName (LocationBackend::QtPositioning)
+               << "source=" << m_positionSource->sourceName ();
       connect (m_positionSource, &QGeoPositionInfoSource::positionUpdated,
                this, &WeatherProvider::onPositionUpdated);
       connect (m_positionSource, &QGeoPositionInfoSource::errorOccurred, this,
                &WeatherProvider::onPositionError);
-
-      requestLocationUpdate ();
-      return;
     }
+  else
+    {
+      qWarning ()
+          << "Qt Positioning default source unavailable during initialization";
+    }
+#else
+  qInfo () << "Qt Positioning not available at build time, using IP location "
+              "fallback";
 #endif
 
-  qWarning () << "Position source not available, using default location";
-  // Use Beijing as default
-  setLocation (kDefaultLatitude, kDefaultLongitude);
+  requestLocationUpdate ();
 }
 
 void
@@ -261,18 +321,18 @@ WeatherProvider::refresh ()
   if (m_latitude != 0 && m_longitude != 0)
     {
       fetchWeather (m_latitude, m_longitude);
-#ifdef QT_POSITIONING_LIB
     }
-  else if (m_positionSource)
+  else
     {
       requestLocationUpdate ();
-#endif
     }
 }
 
 void
 WeatherProvider::setLocation (double latitude, double longitude)
 {
+  m_locationLookupInProgress = false;
+
 #ifdef QT_POSITIONING_LIB
   stopGeoclueAgent ();
 #endif
@@ -290,25 +350,63 @@ WeatherProvider::setLocation (double latitude, double longitude)
 void
 WeatherProvider::onPositionUpdated (const QGeoPositionInfo &info)
 {
+  if (!m_locationLookupInProgress)
+    {
+      qInfo () << "Ignoring stale position update";
+      return;
+    }
+
   QGeoCoordinate coord = info.coordinate ();
-  if (coord.isValid ())
+  if (!coord.isValid ())
     {
       stopGeoclueAgent ();
-      setLocation (coord.latitude (), coord.longitude ());
+      qWarning () << "Position update returned invalid coordinate"
+                  << "backend="
+                  << locationBackendName (LocationBackend::QtPositioning)
+                  << "source="
+                  << (m_positionSource ? m_positionSource->sourceName ()
+                                       : QStringLiteral ("unknown"));
+      fallbackToIpLocation (QStringLiteral ("invalid-coordinate"));
+      return;
     }
+
+  const qreal horizontalAccuracy
+      = info.hasAttribute (QGeoPositionInfo::HorizontalAccuracy)
+            ? info.attribute (QGeoPositionInfo::HorizontalAccuracy)
+            : -1;
+
+  qInfo () << "Location lookup success"
+           << "backend="
+           << locationBackendName (LocationBackend::QtPositioning) << "source="
+           << (m_positionSource ? m_positionSource->sourceName ()
+                                : QStringLiteral ("unknown"))
+           << "latitude=" << coord.latitude ()
+           << "longitude=" << coord.longitude ()
+           << "horizontalAccuracy=" << horizontalAccuracy;
+  setLocation (coord.latitude (), coord.longitude ());
 }
 
 void
 WeatherProvider::onPositionError (QGeoPositionInfoSource::Error error)
 {
-  stopGeoclueAgent ();
-  qWarning () << "Position error:" << error;
-  m_hasError = true;
-  m_errorMessage = tr ("Failed to get location");
-  emit errorChanged ();
+  if (!m_locationLookupInProgress)
+    {
+      qInfo () << "Ignoring stale position error"
+               << "error=" << positionErrorName (error);
+      return;
+    }
 
-  // Use default location
-  setLocation (kDefaultLatitude, kDefaultLongitude);
+  stopGeoclueAgent ();
+  qWarning () << "Location backend failed"
+              << "backend="
+              << locationBackendName (LocationBackend::QtPositioning)
+              << "source="
+              << (m_positionSource ? m_positionSource->sourceName ()
+                                   : QStringLiteral ("unknown"))
+              << "error=" << positionErrorName (error)
+              << "errorCode=" << error;
+  fallbackToIpLocation (
+      QStringLiteral ("qt-position-error:%1").arg (positionErrorName (error)));
 }
 
 void
@@ -324,9 +422,18 @@ void
 WeatherProvider::onGeoclueAgentErrorOccurred (QProcess::ProcessError error)
 {
   logGeoclueAgentOutput (m_geoclueAgentProcess);
-  qWarning () << "Failed to start Geoclue agent"
+  if (m_geoclueAgentStopRequested && error == QProcess::Crashed)
+    {
+      qInfo () << "Geoclue agent exited after stop request"
+               << "error=" << error;
+      return;
+    }
+
+  m_geoclueAgentPrestartDisabled = true;
+  qWarning () << "Geoclue agent prestart failed"
               << "error=" << error
-              << "message=" << m_geoclueAgentProcess->errorString ();
+              << "message=" << m_geoclueAgentProcess->errorString ()
+              << "disablePrestartForSession=" << true;
   requestPositionUpdate ();
 }
 
@@ -335,6 +442,14 @@ WeatherProvider::onGeoclueAgentFinished (int exitCode,
                                          QProcess::ExitStatus exitStatus)
 {
   logGeoclueAgentOutput (m_geoclueAgentProcess);
+  if (m_geoclueAgentStopRequested)
+    {
+      qInfo () << "Geoclue agent stopped"
+               << "exitCode=" << exitCode << "exitStatus=" << exitStatus;
+      m_geoclueAgentStopRequested = false;
+      return;
+    }
+
   qInfo () << "Geoclue agent finished"
            << "exitCode=" << exitCode << "exitStatus=" << exitStatus;
   requestPositionUpdate ();
@@ -344,21 +459,78 @@ WeatherProvider::onGeoclueAgentFinished (int exitCode,
 void
 WeatherProvider::requestLocationUpdate ()
 {
+  if (m_locationLookupInProgress)
+    {
+      qInfo () << "Location lookup already in progress";
+      return;
+    }
+
+  if (m_ipLocationRequestPending)
+    {
+      qInfo () << "IP geolocation request already pending";
+      return;
+    }
+
+  m_locationLookupInProgress = true;
+
 #ifdef QT_POSITIONING_LIB
-  if (!m_positionSource)
+  if (m_positionSource)
     {
+      if (m_positionRequestPending)
+        {
+          qInfo () << "Position request already pending";
+          return;
+        }
+
+      m_positionRequestPending = true;
+      qInfo () << "Location lookup start"
+               << "backend="
+               << locationBackendName (LocationBackend::QtPositioning)
+               << "source=" << m_positionSource->sourceName ();
+      ensureGeoclueAgentForLocation ();
       return;
     }
 
-  if (m_positionRequestPending)
-    {
-      qInfo () << "Position request already pending";
-      return;
-    }
-
-  m_positionRequestPending = true;
-  ensureGeoclueAgentForLocation ();
+  fallbackToIpLocation (QStringLiteral ("qt-source-unavailable"));
+#else
+  fetchLocationFromIp (
+      QStringLiteral ("qt-positioning-disabled-at-build-time"));
 #endif
+}
+
+void
+WeatherProvider::fetchLocationFromIp (const QString &reason)
+{
+  if (m_ipLocationRequestPending)
+    {
+      qInfo () << "IP geolocation request already pending";
+      return;
+    }
+
+  QUrl url ("https://api.bigdatacloud.net/data/reverse-geocode-client");
+  QUrlQuery query;
+  query.addQueryItem ("localityLanguage", uiLanguageCode ());
+  url.setQuery (query);
+
+  qInfo () << "Location lookup start"
+           << "backend="
+           << locationBackendName (LocationBackend::IpGeolocation)
+           << "reason=" << reason << "url=" << url.toString ();
+
+  QNetworkRequest request (url);
+  request.setRawHeader (
+      "User-Agent",
+      "dde-shell-weather-plugin/1.0 "
+      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
+  request.setRawHeader ("Accept", "application/json");
+
+  QNetworkReply *reply = m_networkManager->get (request);
+  reply->setProperty ("requestStartedAt", nowMs ());
+  reply->setProperty ("reason", reason);
+  m_ipLocationRequestPending = true;
+
+  connect (reply, &QNetworkReply::finished, this,
+           [this, reply] () { onIpLocationReplyFinished (reply); });
 }
 
 void
@@ -616,6 +788,92 @@ WeatherProvider::onCityReplyFinished (QNetworkReply *reply)
   emit weatherChanged ();
 }
 
+void
+WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
+{
+  const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
+  const qint64 elapsedMs = startedAt > 0 ? nowMs () - startedAt : -1;
+  const QString reason = reply->property ("reason").toString ();
+  const QVariant httpStatus
+      = reply->attribute (QNetworkRequest::HttpStatusCodeAttribute);
+
+  qInfo () << "IP geolocation request finished"
+           << "elapsedMs=" << elapsedMs << "httpStatus=" << httpStatus
+           << "networkError=" << reply->error () << "reason=" << reason;
+
+  m_ipLocationRequestPending = false;
+  const QByteArray data = reply->readAll ();
+  reply->deleteLater ();
+
+  if (!m_locationLookupInProgress)
+    {
+      qInfo () << "Ignoring stale IP geolocation reply"
+               << "elapsedMs=" << elapsedMs;
+      return;
+    }
+
+  if (reply->error () != QNetworkReply::NoError)
+    {
+      qWarning () << "IP geolocation failed"
+                  << "elapsedMs=" << elapsedMs << "reason=" << reason
+                  << "message=" << reply->errorString ();
+      useDefaultLocation (
+          QStringLiteral ("ip-network-error:%1").arg (reply->errorString ()));
+      return;
+    }
+
+  const QJsonDocument doc = QJsonDocument::fromJson (data);
+  const QJsonObject root = doc.object ();
+  double latitude = 0;
+  double longitude = 0;
+
+  if (!parseIpLocation (root, &latitude, &longitude))
+    {
+      qWarning () << "IP geolocation payload missing usable coordinates"
+                  << "elapsedMs=" << elapsedMs << "reason=" << reason
+                  << "lookupSource=" << root["lookupSource"].toString ();
+      useDefaultLocation (QStringLiteral ("ip-invalid-payload"));
+      return;
+    }
+
+  qInfo () << "Location lookup success"
+           << "backend="
+           << locationBackendName (LocationBackend::IpGeolocation)
+           << "latitude=" << latitude << "longitude=" << longitude
+           << "lookupSource=" << root["lookupSource"].toString ()
+           << "elapsedMs=" << elapsedMs;
+  setLocation (latitude, longitude);
+}
+
+bool
+WeatherProvider::parseIpLocation (const QJsonObject &root, double *latitude,
+                                  double *longitude) const
+{
+  if (!latitude || !longitude)
+    {
+      return false;
+    }
+
+  if (!jsonValueToDouble (root["latitude"], latitude)
+      || !jsonValueToDouble (root["longitude"], longitude))
+    {
+      return false;
+    }
+
+  if (!std::isfinite (*latitude) || !std::isfinite (*longitude))
+    {
+      return false;
+    }
+
+  if (*latitude < -90.0 || *latitude > 90.0 || *longitude < -180.0
+      || *longitude > 180.0)
+    {
+      return false;
+    }
+
+  return true;
+}
+
 bool
 WeatherProvider::parseMetNoWeather (const QJsonObject &root)
 {
@@ -817,6 +1075,24 @@ WeatherProvider::backendName (WeatherBackend backend)
 }
 
 QString
+WeatherProvider::locationBackendName (LocationBackend backend)
+{
+  switch (backend)
+    {
+#ifdef QT_POSITIONING_LIB
+    case LocationBackend::QtPositioning:
+      return QStringLiteral ("Qt Positioning");
+#endif
+    case LocationBackend::IpGeolocation:
+      return QStringLiteral ("IP geolocation");
+    case LocationBackend::DefaultLocation:
+      return QStringLiteral ("Default location");
+    }
+
+  return QStringLiteral ("Unknown");
+}
+
+QString
 WeatherProvider::parseOpenMeteoWeatherCode (int code)
 {
   // WMO Weather interpretation codes (WW)
@@ -1007,10 +1283,29 @@ WeatherProvider::buildCandidateServices () const
 
 #ifdef QT_POSITIONING_LIB
 void
+WeatherProvider::fallbackToIpLocation (const QString &reason)
+{
+  qWarning () << "Location backend fallback"
+              << "from="
+              << locationBackendName (LocationBackend::QtPositioning)
+              << "to=" << locationBackendName (LocationBackend::IpGeolocation)
+              << "reason=" << reason;
+  fetchLocationFromIp (reason);
+}
+
+void
 WeatherProvider::ensureGeoclueAgentForLocation ()
 {
   if (!m_geoclueAgentProcess)
     {
+      requestPositionUpdate ();
+      return;
+    }
+
+  if (m_geoclueAgentPrestartDisabled)
+    {
+      qInfo () << "Geoclue agent prestart disabled for this session, "
+                  "requesting location without authorization helper";
       requestPositionUpdate ();
       return;
     }
@@ -1035,6 +1330,7 @@ WeatherProvider::ensureGeoclueAgentForLocation ()
 
   qInfo () << "Starting Geoclue agent"
            << "program=" << program;
+  m_geoclueAgentStopRequested = false;
   m_geoclueAgentProcess->setProgram (program);
   m_geoclueAgentProcess->setArguments ({});
   m_geoclueAgentProcess->start ();
@@ -1082,6 +1378,7 @@ WeatherProvider::stopGeoclueAgent ()
 
   qInfo () << "Stopping Geoclue agent"
            << "program=" << m_geoclueAgentProcess->program ();
+  m_geoclueAgentStopRequested = true;
   m_geoclueAgentProcess->terminate ();
   QTimer::singleShot (kGeoclueAgentStopGraceMs, this, [this] () {
     if (!m_geoclueAgentProcess
@@ -1123,3 +1420,22 @@ WeatherProvider::geoclueAgentProgram () const
   return QString ();
 }
 #endif
+
+void
+WeatherProvider::useDefaultLocation (const QString &reason)
+{
+  m_locationLookupInProgress = false;
+
+  qWarning () << "Location backend fallback"
+              << "from="
+              << locationBackendName (LocationBackend::IpGeolocation) << "to="
+              << locationBackendName (LocationBackend::DefaultLocation)
+              << "reason=" << reason << "latitude=" << kDefaultLatitude
+              << "longitude=" << kDefaultLongitude;
+
+  m_hasError = true;
+  m_errorMessage = tr ("Failed to get location");
+  emit errorChanged ();
+
+  setLocation (kDefaultLatitude, kDefaultLongitude);
+}

@@ -146,6 +146,7 @@ signals:
 private slots:
   void onWeatherReplyFinished (QNetworkReply *reply);
   void onCityReplyFinished (QNetworkReply *reply);
+  void onIpLocationReplyFinished (QNetworkReply *reply);
 
 #ifdef QT_POSITIONING_LIB
   void onPositionUpdated (const QGeoPositionInfo &info);
@@ -162,24 +163,39 @@ private:
     OpenMeteo,
   };
 
+  enum class LocationBackend
+  {
+#ifdef QT_POSITIONING_LIB
+    QtPositioning,
+#endif
+    IpGeolocation,
+    DefaultLocation,
+  };
+
   void initLocationSource ();
   void requestLocationUpdate ();
+  void fetchLocationFromIp (const QString &reason);
+  void useDefaultLocation (const QString &reason);
   void fetchWeather (double latitude, double longitude);
   void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
                                 double longitude);
   void fetchMetNoWeather (double latitude, double longitude);
   void fetchOpenMeteoWeather (double latitude, double longitude);
   void fetchCityName (double latitude, double longitude);
+  bool parseIpLocation (const QJsonObject &root, double *latitude,
+                        double *longitude) const;
   bool parseMetNoWeather (const QJsonObject &root);
   bool parseOpenMeteoWeather (const QJsonObject &root);
   void finishWeatherRequest ();
   bool fallbackToNextBackend (WeatherBackend backend, double latitude,
                               double longitude);
   static QString backendName (WeatherBackend backend);
+  static QString locationBackendName (LocationBackend backend);
   QString parseOpenMeteoWeatherCode (int code);
   QString parseMetNoSymbolCode (const QString &symbolCode);
   QVariantList buildCandidateServices () const;
 #ifdef QT_POSITIONING_LIB
+  void fallbackToIpLocation (const QString &reason);
   void ensureGeoclueAgentForLocation ();
   void requestPositionUpdate ();
   void stopGeoclueAgent ();
@@ -204,5 +220,9 @@ private:
   void *m_positionSource;      // Placeholder when positioning not available
   void *m_geoclueAgentProcess; // Placeholder when positioning not available
 #endif
+  bool m_geoclueAgentPrestartDisabled;
+  bool m_geoclueAgentStopRequested;
   bool m_positionRequestPending;
+  bool m_locationLookupInProgress;
+  bool m_ipLocationRequestPending;
 };

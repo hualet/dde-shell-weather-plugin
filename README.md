@@ -91,13 +91,7 @@ dpkg-buildpackage -us -uc -b
 里的静态放行配置。
 
 如果仍出现 `UpdateTimeoutError`，说明系统定位源本身没有在超时时间内返回结果，而不是 agent
-启动时机的问题。
-
-## GitHub Actions
-
-- `.github/workflows/build.yml`：在 `main/master` 分支和 PR 上做常规编译，并上传安装树产物。
-- `.github/workflows/deb.yml`：支持手动触发、推送 `v*` tag，或发布 GitHub Release 时构建 `deb`，并将产物附加到对应 Release。
-- 两个工作流都使用 `docker.io/hualet/deepin:25-builder` 作为构建容器，避免 GitHub Runner 缺少 Deepin 依赖。
+启动时机的问题。此时插件会自动回退到基于 IP 的粗定位；如果 IP 定位也失败，才会回退到默认城市。
 
 ## 项目结构
 
