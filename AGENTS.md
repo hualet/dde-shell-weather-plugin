@@ -13,6 +13,7 @@ DDE Shell weather plugin - Deepin Desktop Environment taskbar weather applet usi
 ```
 ./
 ├── CMakeLists.txt            # Build config
+├── debian/                   # Debian packaging metadata
 ├── src/                      # C++ source files
 │   ├── weatherapplet.h/cpp   # Main applet class (DApplet)
 │   └── weatherprovider.h/cpp # Weather data provider (QNetworkAccessManager)
@@ -30,6 +31,7 @@ DDE Shell weather plugin - Deepin Desktop Environment taskbar weather applet usi
 | UI changes | `package/main.qml` | Main UI layout |
 | Icon animations | `package/WeatherIcon.qml` | Weather condition icons |
 | Build system | `CMakeLists.txt` | Qt6/DTK6 dependencies |
+| Version bump / release | `CMakeLists.txt` + `package/metadata.json` + `debian/changelog` | Keep upstream and Debian package versions in sync |
 
 ## CODE MAP
 
@@ -46,6 +48,7 @@ DDE Shell weather plugin - Deepin Desktop Environment taskbar weather applet usi
 - **C++**: Run `clang-format -style=gnu` after every C++ edit
 - **License**: SPDX header required on every new file (`// SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.`)
 - **Namespace**: Use `DS_USE_NAMESPACE` in headers that expose DDE types
+- **Version updates**: Always update `CMakeLists.txt`, `package/metadata.json`, and `debian/changelog` together
 
 ## ANTI-PATTERNS
 
@@ -65,7 +68,20 @@ sudo make install
 
 # Format C++
 clang-format -style=gnu -i src/weatherprovider.cpp src/weatherapplet.cpp
+
+# Check Debian package version
+dpkg-parsechangelog -S Version
 ```
+
+## VERSION BUMP CHECKLIST
+
+When bumping the release version:
+
+1. Update `project(... VERSION x.y.z ...)` in `CMakeLists.txt`
+2. Update `Plugin.Version` in `package/metadata.json`
+3. Add a new top entry in `debian/changelog` using Debian package version `x.y.z-1`
+4. Verify `dpkg-parsechangelog -S Version` matches the expected Debian version
+5. Run a build after the version bump to catch packaging or metadata regressions
 
 ## NOTES
 
