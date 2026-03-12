@@ -1092,6 +1092,8 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
       return;
     }
 
+  m_weatherData.updatedAt = QDateTime::currentDateTimeUtc ();
+
   qInfo () << "Weather parse success"
            << "backend=" << backendName (backend)
            << "providerName=" << m_providerName
@@ -1716,6 +1718,33 @@ WeatherProvider::formattedWindSpeed () const
   return tr ("%1 %2")
       .arg (locale.toString (qRound (displayValue)))
       .arg (windSpeedUnitForLocale (locale));
+}
+
+QString
+WeatherProvider::formattedUpdatedAt () const
+{
+  if (!m_weatherData.updatedAt.isValid ())
+    {
+      return tr ("Unavailable");
+    }
+
+  return formatLocale ().toString (m_weatherData.updatedAt.toLocalTime (),
+                                   QLocale::ShortFormat);
+}
+
+QString
+WeatherProvider::tooltipText () const
+{
+  const QString displayCity = m_weatherData.city.trimmed ().isEmpty ()
+                                  ? tr ("Unknown")
+                                  : m_weatherData.city.trimmed ();
+  const QString displayDescription
+      = m_weatherData.weatherDescription.trimmed ().isEmpty ()
+            ? tr ("Unknown")
+            : m_weatherData.weatherDescription.trimmed ();
+
+  return tr ("Location: %1\nWeather: %2\nUpdated: %3")
+      .arg (displayCity, displayDescription, formattedUpdatedAt ());
 }
 
 QString

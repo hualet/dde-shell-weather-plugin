@@ -20,11 +20,42 @@ AppletItem {
     implicitWidth: useColumnLayout ? dockSize : 180
     implicitHeight: dockSize
 
+    PanelToolTip {
+        id: toolTip
+        text: Applet.weather.tooltipText || ""
+        toolTipX: DockPanelPositioner.x
+        toolTipY: DockPanelPositioner.y
+    }
+
+    Timer {
+        id: toolTipShowTimer
+        interval: 50
+        onTriggered: {
+            const point = root.mapToItem(null, root.width / 2, root.height / 2)
+            toolTip.DockPanelPositioner.bounding = Qt.rect(point.x, point.y, toolTip.width, toolTip.height)
+            toolTip.open()
+        }
+    }
+
+    HoverHandler {
+        onHoveredChanged: {
+            if (hovered && toolTip.text.length > 0) {
+                toolTipShowTimer.start()
+            } else {
+                if (toolTipShowTimer.running) {
+                    toolTipShowTimer.stop()
+                }
+                toolTip.close()
+            }
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         preventStealing: true
         onClicked: function(mouse) {
+            toolTip.close()
             locationMenuLoader.active = true
             locationMenuLoader.item.open()
             mouse.accepted = true

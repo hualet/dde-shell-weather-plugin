@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <QDateTime>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -27,6 +28,7 @@ struct WeatherData
   double humidity;
   double windSpeed;
   QString weatherDescription;
+  QDateTime updatedAt;
   bool isValid;
 
   WeatherData ()
@@ -59,6 +61,9 @@ class WeatherProvider : public QObject
                   NOTIFY weatherChanged)
   Q_PROPERTY (
       QString formattedWindSpeed READ formattedWindSpeed NOTIFY weatherChanged)
+  Q_PROPERTY (
+      QString formattedUpdatedAt READ formattedUpdatedAt NOTIFY weatherChanged)
+  Q_PROPERTY (QString tooltipText READ tooltipText NOTIFY weatherChanged)
   Q_PROPERTY (
       QString temperatureUnit READ temperatureUnit NOTIFY weatherChanged)
   Q_PROPERTY (QString windSpeedUnit READ windSpeedUnit NOTIFY weatherChanged)
@@ -142,6 +147,8 @@ public:
   QString formattedTemperature () const;
   QString formattedTemperatureRange () const;
   QString formattedWindSpeed () const;
+  QString formattedUpdatedAt () const;
+  QString tooltipText () const;
   QString temperatureUnit () const;
   QString windSpeedUnit () const;
   bool autoLocationEnabled () const;
