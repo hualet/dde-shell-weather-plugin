@@ -7,6 +7,7 @@ import QtQuick.Layouts 1.15
 import Qt.labs.platform 1.1 as LP
 import org.deepin.ds 1.0
 import org.deepin.ds.dock 1.0
+import org.deepin.dtk 1.0
 
 AppletItem {
     id: root
@@ -31,6 +32,23 @@ AppletItem {
                                                 + forecastCellSpacing * (hourlyForecastEntries.length - 1)
                                               : 0
     readonly property real hourlyPopupContentWidth: forecastTrackWidth + forecastEdgeInset * 2
+    property Palette textPalette: DockPalette.iconTextPalette
+    property Palette chartLinePalette: Palette {
+        normal {
+            common: Qt.rgba(36 / 255, 118 / 255, 220 / 255, 0.78)
+        }
+        normalDark {
+            common: Qt.rgba(186 / 255, 231 / 255, 1, 0.92)
+        }
+    }
+    property Palette chartPointPalette: Palette {
+        normal {
+            common: Qt.rgba(24 / 255, 88 / 255, 182 / 255, 0.92)
+        }
+        normalDark {
+            common: Qt.rgba(1, 1, 1, 0.95)
+        }
+    }
     readonly property real hourlyTemperatureMin: {
         if (!hasHourlyForecast) {
             return 0
@@ -209,7 +227,7 @@ AppletItem {
                                     }
 
                                     ctx.lineWidth = 2
-                                    ctx.strokeStyle = "rgba(186, 231, 255, 0.92)"
+                                    ctx.strokeStyle = themeColors.chartLine
                                     ctx.beginPath()
 
                                     for (let index = 0; index < root.hourlyForecastEntries.length; ++index) {
@@ -226,7 +244,7 @@ AppletItem {
 
                                     ctx.stroke()
 
-                                    ctx.fillStyle = "rgba(255, 255, 255, 0.95)"
+                                    ctx.fillStyle = themeColors.chartPoint
                                     for (let index = 0; index < root.hourlyForecastEntries.length; ++index) {
                                         const entry = root.hourlyForecastEntries[index]
                                         const x = root.forecastCenterX(index)
@@ -251,6 +269,16 @@ AppletItem {
                                     }
                                 }
 
+                                Connections {
+                                    target: themeColors
+                                    function onChartLineChanged() {
+                                        temperatureCurveCanvas.requestPaint()
+                                    }
+                                    function onChartPointChanged() {
+                                        temperatureCurveCanvas.requestPaint()
+                                    }
+                                }
+
                                 onWidthChanged: requestPaint()
                                 onHeightChanged: requestPaint()
                             }
@@ -265,10 +293,9 @@ AppletItem {
                                     x: root.forecastCenterX(index) - width / 2
                                     y: root.temperatureLabelY(index, height)
                                     text: modelData.formattedTemperature || ""
-                                    color: themeColors.text
+                                    color: themeColors.primaryText
                                     font.pixelSize: 10
-                                    font.bold: true
-                                    opacity: 0.92
+                                    font.bold: false
                                     horizontalAlignment: Text.AlignHCenter
                                     renderType: Text.NativeRendering
                                 }
@@ -301,11 +328,10 @@ AppletItem {
                                     Text {
                                         width: parent.width
                                         text: index === 0 ? qsTr("Now") : (modelData.displayHour || "")
-                                        color: themeColors.text
+                                        color: themeColors.secondaryText
                                         font.pixelSize: 10
                                         horizontalAlignment: Text.AlignHCenter
                                         elide: Text.ElideRight
-                                        opacity: 0.84
                                     }
                                 }
                             }
@@ -372,7 +398,7 @@ AppletItem {
     Text {
         anchors.centerIn: parent
         text: Applet.weather.hasError ? Applet.weather.errorMessage : ""
-        color: themeColors.text
+        color: themeColors.primaryText
         font.pixelSize: 10
         visible: Applet.weather.hasError
         horizontalAlignment: Text.AlignHCenter
@@ -445,7 +471,7 @@ AppletItem {
                                                     ? topRow.spacing + tempRangeLabel.implicitWidth
                                                     : 0)))
                     font.pixelSize: 10
-                    color: themeColors.text
+                    color: themeColors.secondaryText
                     elide: Text.ElideRight
                     visible: text.length > 0
                 }
@@ -454,9 +480,7 @@ AppletItem {
                     id: tempRangeLabel
                     text: Applet.weather.formattedTemperatureRange
                     font.pixelSize: 10
-                    color: themeColors.text
-                    opacity: 0.8
-                    visible: text.length > 0
+                    color: themeColors.secondaryText
                 }
             }
             
@@ -469,8 +493,8 @@ AppletItem {
                     id: tempLabel
                     text: Applet.weather.formattedTemperature
                     font.pixelSize: 14
-                    font.bold: true
-                    color: themeColors.text
+                    font.bold: false
+                    color: themeColors.primaryText
                 }
                 
                 Text {
@@ -483,8 +507,7 @@ AppletItem {
                                                     ? bottomRow.spacing + tempLabel.implicitWidth
                                                     : 0)))
                     font.pixelSize: 10
-                    color: themeColors.text
-                    opacity: 0.8
+                    color: themeColors.secondaryText
                     elide: Text.ElideRight
                     visible: text.length > 0
                 }
@@ -495,8 +518,12 @@ AppletItem {
     // Theme colors
     QtObject {
         id: themeColors
-        readonly property color text: Qt.rgba(1, 1, 1, 0.9)
-        readonly property color icon: Qt.rgba(1, 1, 1, 0.95)
+        readonly property color text: root.ColorSelector.textPalette
+        readonly property color primaryText: Qt.rgba(text.r, text.g, text.b, 0.82)
+        readonly property color secondaryText: Qt.rgba(text.r, text.g, text.b, 0.68)
+        readonly property color icon: text
+        readonly property color chartLine: root.ColorSelector.chartLinePalette
+        readonly property color chartPoint: root.ColorSelector.chartPointPalette
     }
 
     Loader {
