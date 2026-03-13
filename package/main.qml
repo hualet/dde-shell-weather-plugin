@@ -19,6 +19,7 @@ AppletItem {
     readonly property var hourlyForecastEntries: Applet.weather.hourlyForecast || []
     readonly property int forecastCellWidth: 60
     readonly property int forecastCellSpacing: 14
+    readonly property int forecastWheelStep: forecastCellWidth + forecastCellSpacing
     readonly property int forecastEdgeInset: 20
     readonly property int temperatureChartHeight: 82
     readonly property int hourlyPopupViewportWidth: useColumnLayout ? 320 : 520
@@ -144,6 +145,36 @@ AppletItem {
 
                 ScrollBar.horizontal: ScrollBar {
                     policy: hourlyForecastFlick.contentWidth > hourlyForecastFlick.width ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+
+                    onWheel: function(wheel) {
+                        if (hourlyForecastFlick.contentWidth <= hourlyForecastFlick.width) {
+                            return
+                        }
+
+                        let movement = 0
+                        if (wheel.pixelDelta.x !== 0) {
+                            movement = wheel.pixelDelta.x
+                        } else if (wheel.angleDelta.x !== 0) {
+                            movement = wheel.angleDelta.x / 120 * root.forecastWheelStep
+                        } else if (wheel.angleDelta.y !== 0) {
+                            movement = -wheel.angleDelta.y / 120 * root.forecastWheelStep
+                        }
+
+                        if (movement === 0) {
+                            return
+                        }
+
+                        const maxContentX = Math.max(0, hourlyForecastFlick.contentWidth - hourlyForecastFlick.width)
+                        hourlyForecastFlick.contentX = Math.max(0,
+                                                                Math.min(maxContentX,
+                                                                         hourlyForecastFlick.contentX + movement))
+                        wheel.accepted = true
+                    }
                 }
 
                 Item {
