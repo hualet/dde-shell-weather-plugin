@@ -1,3 +1,9 @@
+dde-shell-weather-plugin (1.3.0-1) unstable; urgency=medium
+
+  * Bump upstream version to 1.3.0.
+
+ -- Deepin Packages Builder <packages@deepin.org>  Fri, 13 Mar 2026 16:37:19 +0800
+
 dde-shell-weather-plugin (1.2.0-1) unstable; urgency=medium
 
   * Bump upstream version to 1.2.0.
