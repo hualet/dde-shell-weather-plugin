@@ -962,10 +962,11 @@ WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
   QUrlQuery query;
   query.addQueryItem ("latitude", QString::number (latitude));
   query.addQueryItem ("longitude", QString::number (longitude));
-  query.addQueryItem (
-      "current",
-      "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
+  query.addQueryItem ("current", "temperature_2m,relative_humidity_2m,weather_"
+                                 "code,wind_speed_10m,is_day");
   query.addQueryItem ("daily", "temperature_2m_max,temperature_2m_min");
+  query.addQueryItem ("hourly", "temperature_2m,weather_code,is_day");
+  query.addQueryItem ("forecast_hours", QStringLiteral ("24"));
   query.addQueryItem ("timezone", "auto");
   query.addQueryItem ("wind_speed_unit", openMeteoWindSpeedQueryUnit (locale));
   url.setQuery (query);
@@ -1101,6 +1102,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
            << "humidity=" << m_weatherData.humidity
            << "windSpeed=" << m_weatherData.windSpeed
            << "weatherCode=" << m_weatherData.weatherCode
+           << "hourlyForecastEntries=" << m_hourlyForecast.size ()
            << "elapsedMs=" << elapsedMs;
 
   finishWeatherRequest ();
@@ -1443,7 +1445,10 @@ WeatherProvider::parseMetNoWeather (const QJsonObject &root)
     }
 
   m_weatherData.weatherCode = symbolCode;
+  m_weatherData.iconName = iconNameForMetNoSymbol (symbolCode);
   m_weatherData.weatherDescription = parseMetNoSymbolCode (symbolCode);
+  const QVariantList parsedHourlyForecast
+      = parseMetNoHourlyForecast (timeseries);
 
   const QDateTime firstTime
       = QDateTime::fromString (firstPoint["time"].toString (), Qt::ISODate);
@@ -1495,6 +1500,7 @@ WeatherProvider::parseMetNoWeather (const QJsonObject &root)
       = hasRange ? minTemp : m_weatherData.temperature;
   m_weatherData.temperatureMax
       = hasRange ? maxTemp : m_weatherData.temperature;
+  m_hourlyForecast = parsedHourlyForecast;
 
   return true;
 }
@@ -1508,6 +1514,8 @@ WeatherProvider::parseOpenMeteoWeather (const QJsonObject &root)
     }
 
   const QJsonObject current = root["current"].toObject ();
+  const QVariantList parsedHourlyForecast
+      = parseOpenMeteoHourlyForecast (root);
 
   if (!current.contains ("temperature_2m"))
     {
@@ -1522,7 +1530,10 @@ WeatherProvider::parseOpenMeteoWeather (const QJsonObject &root)
       current["wind_speed_10m"].toDouble (), windSpeedUnit);
 
   const int weatherCode = current["weather_code"].toInt ();
+  const bool isDay
+      = !current.contains ("is_day") || current["is_day"].toInt () != 0;
   m_weatherData.weatherCode = QString::number (weatherCode);
+  m_weatherData.iconName = iconNameForOpenMeteoCode (weatherCode, isDay);
   m_weatherData.weatherDescription = parseOpenMeteoWeatherCode (weatherCode);
 
   if (root.contains ("daily"))
@@ -1553,7 +1564,299 @@ WeatherProvider::parseOpenMeteoWeather (const QJsonObject &root)
       m_weatherData.temperatureMin = m_weatherData.temperature;
     }
 
+  m_hourlyForecast = parsedHourlyForecast;
+
   return true;
+}
+
+QVariantList
+WeatherProvider::parseMetNoHourlyForecast (const QJsonArray &timeseries) const
+{
+  QVariantList forecast;
+
+  for (const QJsonValue &entryValue : timeseries)
+    {
+      if (forecast.size () >= 24)
+        {
+          break;
+        }
+
+      const QJsonObject entry = entryValue.toObject ();
+      const QDateTime timestamp
+          = QDateTime::fromString (entry["time"].toString (), Qt::ISODate);
+      if (!timestamp.isValid ())
+        {
+          continue;
+        }
+
+      const QJsonObject data = entry["data"].toObject ();
+      const QJsonObject details
+          = data["instant"].toObject ()["details"].toObject ();
+      if (!details.contains ("air_temperature"))
+        {
+          continue;
+        }
+
+      QString weatherCode = data["next_1_hours"]
+                                .toObject ()["summary"]
+                                .toObject ()["symbol_code"]
+                                .toString ();
+      if (weatherCode.isEmpty ())
+        {
+          weatherCode = data["next_6_hours"]
+                            .toObject ()["summary"]
+                            .toObject ()["symbol_code"]
+                            .toString ();
+        }
+      if (weatherCode.isEmpty ())
+        {
+          weatherCode = data["next_12_hours"]
+                            .toObject ()["summary"]
+                            .toObject ()["symbol_code"]
+                            .toString ();
+        }
+      if (weatherCode.isEmpty ())
+        {
+          continue;
+        }
+
+      forecast.append (buildHourlyForecastEntry (
+          timestamp, weatherCode, iconNameForMetNoSymbol (weatherCode),
+          details["air_temperature"].toDouble ()));
+    }
+
+  return forecast;
+}
+
+QVariantList
+WeatherProvider::parseOpenMeteoHourlyForecast (const QJsonObject &root) const
+{
+  QVariantList forecast;
+
+  const QJsonObject hourly = root["hourly"].toObject ();
+  const QJsonArray times = hourly["time"].toArray ();
+  const QJsonArray temperatures = hourly["temperature_2m"].toArray ();
+  const QJsonArray weatherCodes = hourly["weather_code"].toArray ();
+  const QJsonArray isDayValues = hourly["is_day"].toArray ();
+  const int count = qMin (times.size (),
+                          qMin (temperatures.size (), weatherCodes.size ()));
+
+  for (int index = 0; index < count && forecast.size () < 24; ++index)
+    {
+      const QDateTime timestamp
+          = QDateTime::fromString (times[index].toString (), Qt::ISODate);
+      if (!timestamp.isValid ())
+        {
+          continue;
+        }
+
+      const int weatherCode = weatherCodes[index].toInt ();
+      const bool isDay
+          = index >= isDayValues.size () || isDayValues[index].toInt () != 0;
+      const QString weatherCodeString = QString::number (weatherCode);
+
+      forecast.append (buildHourlyForecastEntry (
+          timestamp, weatherCodeString,
+          iconNameForOpenMeteoCode (weatherCode, isDay),
+          temperatures[index].toDouble ()));
+    }
+
+  return forecast;
+}
+
+QVariantMap
+WeatherProvider::buildHourlyForecastEntry (const QDateTime &time,
+                                           const QString &weatherCode,
+                                           const QString &iconName,
+                                           double temperature) const
+{
+  const QLocale locale = formatLocale ();
+  const double displayTemperature
+      = celsiusToDisplayValue (temperature, locale);
+
+  return QVariantMap{
+    { "time", time },
+    { "displayHour", formatHourlyDisplayTime (time) },
+    { "weatherCode", weatherCode },
+    { "iconName", iconName },
+    { "temperature", temperature },
+    { "formattedTemperature",
+      tr ("%1%2")
+          .arg (locale.toString (qRound (displayTemperature)))
+          .arg (temperatureUnitForLocale (locale)) },
+  };
+}
+
+QString
+WeatherProvider::formatHourlyDisplayTime (const QDateTime &time) const
+{
+  if (!time.isValid ())
+    {
+      return QString ();
+    }
+
+  const QString label = formatLocale ().toString (time.toLocalTime ().time (),
+                                                  QLocale::ShortFormat);
+  if (!label.isEmpty ())
+    {
+      return label;
+    }
+
+  return time.toLocalTime ().toString (QStringLiteral ("HH:mm"));
+}
+
+QString
+WeatherProvider::iconNameForMetNoSymbol (const QString &symbolCode) const
+{
+  const QString normalized = symbolCode.toLower ();
+  const bool preferNight
+      = normalized.contains (QStringLiteral ("night"))
+        || normalized.contains (QStringLiteral ("polartwilight"));
+
+  if (normalized.contains (QStringLiteral ("clearsky")))
+    {
+      return preferNight ? QStringLiteral ("clear-night")
+                         : QStringLiteral ("clear-day");
+    }
+  if (normalized.contains (QStringLiteral ("partlycloudy")))
+    {
+      return preferNight ? QStringLiteral ("cloudy-2-night")
+                         : QStringLiteral ("cloudy-2-day");
+    }
+  if (normalized.contains (QStringLiteral ("fair")))
+    {
+      return preferNight ? QStringLiteral ("cloudy-1-night")
+                         : QStringLiteral ("cloudy-1-day");
+    }
+  if (normalized.contains (QStringLiteral ("fog")))
+    {
+      return preferNight ? QStringLiteral ("fog-night")
+                         : QStringLiteral ("fog-day");
+    }
+  if (normalized.contains (QStringLiteral ("thunder")))
+    {
+      return preferNight ? QStringLiteral ("scattered-thunderstorms-night")
+                         : QStringLiteral ("scattered-thunderstorms-day");
+    }
+  if (normalized.contains (QStringLiteral ("sleet")))
+    {
+      return QStringLiteral ("rain-and-sleet-mix");
+    }
+  if (normalized.contains (QStringLiteral ("snowshowers")))
+    {
+      return preferNight ? QStringLiteral ("snowy-1-night")
+                         : QStringLiteral ("snowy-1-day");
+    }
+  if (normalized.contains (QStringLiteral ("snow")))
+    {
+      return preferNight ? QStringLiteral ("snowy-2-night")
+                         : QStringLiteral ("snowy-2-day");
+    }
+  if (normalized.contains (QStringLiteral ("drizzle")))
+    {
+      return preferNight ? QStringLiteral ("rainy-1-night")
+                         : QStringLiteral ("rainy-1-day");
+    }
+  if (normalized.contains (QStringLiteral ("rainshowers")))
+    {
+      return preferNight ? QStringLiteral ("rainy-1-night")
+                         : QStringLiteral ("rainy-1-day");
+    }
+  if (normalized.contains (QStringLiteral ("rain")))
+    {
+      return preferNight ? QStringLiteral ("rainy-3-night")
+                         : QStringLiteral ("rainy-3-day");
+    }
+  if (normalized.contains (QStringLiteral ("cloudy")))
+    {
+      return preferNight ? QStringLiteral ("cloudy-3-night")
+                         : QStringLiteral ("cloudy");
+    }
+
+  return preferNight ? QStringLiteral ("cloudy-3-night")
+                     : QStringLiteral ("cloudy");
+}
+
+QString
+WeatherProvider::iconNameForOpenMeteoCode (int code, bool isDay) const
+{
+  const QString cloudyIcon
+      = isDay ? QStringLiteral ("cloudy") : QStringLiteral ("cloudy-3-night");
+
+  if (code == 0)
+    {
+      return isDay ? QStringLiteral ("clear-day")
+                   : QStringLiteral ("clear-night");
+    }
+  if (code == 1)
+    {
+      return isDay ? QStringLiteral ("cloudy-1-day")
+                   : QStringLiteral ("cloudy-1-night");
+    }
+  if (code == 2)
+    {
+      return isDay ? QStringLiteral ("cloudy-2-day")
+                   : QStringLiteral ("cloudy-2-night");
+    }
+  if (code == 3)
+    {
+      return cloudyIcon;
+    }
+  if (code >= 45 && code <= 48)
+    {
+      return isDay ? QStringLiteral ("fog-day") : QStringLiteral ("fog-night");
+    }
+  if (code >= 51 && code <= 53)
+    {
+      return isDay ? QStringLiteral ("rainy-1-day")
+                   : QStringLiteral ("rainy-1-night");
+    }
+  if (code >= 55 && code <= 57)
+    {
+      return isDay ? QStringLiteral ("rainy-2-day")
+                   : QStringLiteral ("rainy-2-night");
+    }
+  if (code >= 61 && code <= 65)
+    {
+      return isDay ? QStringLiteral ("rainy-3-day")
+                   : QStringLiteral ("rainy-3-night");
+    }
+  if (code >= 66 && code <= 67)
+    {
+      return QStringLiteral ("rain-and-sleet-mix");
+    }
+  if (code >= 71 && code <= 73)
+    {
+      return isDay ? QStringLiteral ("snowy-1-day")
+                   : QStringLiteral ("snowy-1-night");
+    }
+  if (code >= 74 && code <= 77)
+    {
+      return isDay ? QStringLiteral ("snowy-2-day")
+                   : QStringLiteral ("snowy-2-night");
+    }
+  if (code >= 80 && code <= 81)
+    {
+      return isDay ? QStringLiteral ("rainy-1-day")
+                   : QStringLiteral ("rainy-1-night");
+    }
+  if (code == 82)
+    {
+      return isDay ? QStringLiteral ("rainy-2-day")
+                   : QStringLiteral ("rainy-2-night");
+    }
+  if (code >= 85 && code <= 86)
+    {
+      return isDay ? QStringLiteral ("snowy-1-day")
+                   : QStringLiteral ("snowy-1-night");
+    }
+  if (code >= 95 && code <= 99)
+    {
+      return isDay ? QStringLiteral ("scattered-thunderstorms-day")
+                   : QStringLiteral ("scattered-thunderstorms-night");
+    }
+
+  return cloudyIcon;
 }
 
 void
@@ -1680,6 +1983,12 @@ QVariantList
 WeatherProvider::candidateServices () const
 {
   return buildCandidateServices ();
+}
+
+QVariantList
+WeatherProvider::hourlyForecast () const
+{
+  return m_hourlyForecast;
 }
 
 QString

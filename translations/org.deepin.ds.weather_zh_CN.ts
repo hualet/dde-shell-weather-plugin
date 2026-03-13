@@ -225,5 +225,9 @@ Updated: %3</source>
         <source>Location Settings</source>
         <translation>位置设置</translation>
     </message>
+    <message>
+        <source>Now</source>
+        <translation>现在</translation>
+    </message>
 </context>
 </TS>

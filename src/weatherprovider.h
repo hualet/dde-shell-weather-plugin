@@ -22,6 +22,7 @@ struct WeatherData
 {
   QString city;
   QString weatherCode;
+  QString iconName;
   double temperature;
   double temperatureMax;
   double temperatureMin;
@@ -43,6 +44,7 @@ class WeatherProvider : public QObject
   Q_OBJECT
   Q_PROPERTY (QString city READ city NOTIFY weatherChanged)
   Q_PROPERTY (QString weatherCode READ weatherCode NOTIFY weatherChanged)
+  Q_PROPERTY (QString iconName READ iconName NOTIFY weatherChanged)
   Q_PROPERTY (double temperature READ temperature NOTIFY weatherChanged)
   Q_PROPERTY (double humidity READ humidity NOTIFY weatherChanged)
   Q_PROPERTY (double windSpeed READ windSpeed NOTIFY weatherChanged)
@@ -55,6 +57,8 @@ class WeatherProvider : public QObject
   Q_PROPERTY (double temperatureMin READ temperatureMin NOTIFY weatherChanged)
   Q_PROPERTY (QString providerName READ providerName NOTIFY weatherChanged)
   Q_PROPERTY (QVariantList candidateServices READ candidateServices CONSTANT)
+  Q_PROPERTY (
+      QVariantList hourlyForecast READ hourlyForecast NOTIFY weatherChanged)
   Q_PROPERTY (QString formattedTemperature READ formattedTemperature NOTIFY
                   weatherChanged)
   Q_PROPERTY (QString formattedTemperatureRange READ formattedTemperatureRange
@@ -91,6 +95,11 @@ public:
   weatherCode () const
   {
     return m_weatherData.weatherCode;
+  }
+  QString
+  iconName () const
+  {
+    return m_weatherData.iconName;
   }
   double
   temperature () const
@@ -144,6 +153,7 @@ public:
     return m_providerName;
   }
   QVariantList candidateServices () const;
+  QVariantList hourlyForecast () const;
   QString formattedTemperature () const;
   QString formattedTemperatureRange () const;
   QString formattedWindSpeed () const;
@@ -234,11 +244,20 @@ private:
                         double *longitude) const;
   bool parseMetNoWeather (const QJsonObject &root);
   bool parseOpenMeteoWeather (const QJsonObject &root);
+  QVariantList parseMetNoHourlyForecast (const QJsonArray &timeseries) const;
+  QVariantList parseOpenMeteoHourlyForecast (const QJsonObject &root) const;
   void finishWeatherRequest ();
   bool fallbackToNextBackend (WeatherBackend backend, double latitude,
                               double longitude);
   static QString backendName (WeatherBackend backend);
   static QString locationBackendName (LocationBackend backend);
+  QVariantMap buildHourlyForecastEntry (const QDateTime &time,
+                                        const QString &weatherCode,
+                                        const QString &iconName,
+                                        double temperature) const;
+  QString formatHourlyDisplayTime (const QDateTime &time) const;
+  QString iconNameForMetNoSymbol (const QString &symbolCode) const;
+  QString iconNameForOpenMeteoCode (int code, bool isDay) const;
   QString parseOpenMeteoWeatherCode (int code);
   QString parseMetNoSymbolCode (const QString &symbolCode);
   QVariantList buildCandidateServices () const;
@@ -268,6 +287,7 @@ private:
   QString m_lastAutoCity;
   double m_lastAutoLatitude;
   double m_lastAutoLongitude;
+  QVariantList m_hourlyForecast;
   QVariantList m_citySuggestions;
   QPointer<QNetworkReply> m_citySearchReply;
   bool m_isSearchingCities;

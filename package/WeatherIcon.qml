@@ -7,8 +7,9 @@ Item {
     id: root
     
     property string weatherCode: "0"
+    property string iconNameOverride: ""
     property color iconColor: "white"
-    readonly property string iconName: getIconName(weatherCode)
+    readonly property string iconName: iconNameOverride.length > 0 ? iconNameOverride : getIconName(weatherCode)
     readonly property real sourceCanvasWidth: 56
     readonly property real sourceCanvasHeight: 48
     // Measured from the rendered SVGs. We center the visible content, not the
@@ -71,20 +72,39 @@ Item {
         switch (name) {
         case "clear-day":
             return makeTrimRect(0.5, 1, 31.5, 33)
+        case "clear-night":
+            return makeTrimRect(31.5, 2.5, 21.5, 23)
         case "cloudy-1-day":
         case "cloudy-2-day":
             return makeTrimRect(0.5, 1, 48.5, 39.5)
+        case "cloudy-1-night":
+        case "cloudy-2-night":
+        case "cloudy-3-night":
+            return makeTrimRect(11.5, 1, 41, 40)
         case "fog":
             return makeTrimRect(3, 17, 49, 20.5)
+        case "fog-night":
+            return makeTrimRect(7, 2.5, 45.5, 35)
         case "rainy-1":
             return makeTrimRect(7, 7.5, 42, 37)
+        case "rainy-1-night":
+            return makeTrimRect(7, 2.5, 45.5, 42)
         case "rainy-2":
             return makeTrimRect(7, 7.5, 42, 38.5)
+        case "rainy-2-night":
+            return makeTrimRect(7, 2.5, 45.5, 43)
         case "rainy-3":
             return makeTrimRect(7, 7.5, 42, 40.5)
+        case "rainy-3-night":
+            return makeTrimRect(7, 2.5, 45.5, 45)
         case "snowy-1":
         case "snowy-2":
             return makeTrimRect(7, 7.5, 42, 38)
+        case "snowy-1-night":
+        case "snowy-2-night":
+            return makeTrimRect(7, 2.5, 45.5, 42.5)
+        case "scattered-thunderstorms-night":
+            return makeTrimRect(7, 2.5, 45.5, 45.5)
         case "thunderstorms":
             return makeTrimRect(7, 4.5, 42, 43.5)
         case "cloudy":

@@ -223,5 +223,9 @@ Updated: %3</source>
         <source>Location Settings</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Now</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 </TS>

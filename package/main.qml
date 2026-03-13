@@ -16,9 +16,70 @@ AppletItem {
     property int dockOrder: 10
     
     property int dockSize: Panel.rootObject.dockSize || 48
+    readonly property var hourlyForecastEntries: Applet.weather.hourlyForecast || []
+    readonly property int forecastCellWidth: 60
+    readonly property int forecastCellSpacing: 14
+    readonly property int forecastEdgeInset: 20
+    readonly property int temperatureChartHeight: 82
+    readonly property int hourlyPopupViewportWidth: useColumnLayout ? 320 : 520
+    readonly property bool hasHourlyForecast: hourlyForecastEntries.length > 0
+    readonly property real forecastTrackWidth: hasHourlyForecast
+                                              ? forecastCellWidth * hourlyForecastEntries.length
+                                                + forecastCellSpacing * (hourlyForecastEntries.length - 1)
+                                              : 0
+    readonly property real hourlyPopupContentWidth: forecastTrackWidth + forecastEdgeInset * 2
+    readonly property real hourlyTemperatureMin: {
+        if (!hasHourlyForecast) {
+            return 0
+        }
+
+        let minTemperature = hourlyForecastEntries[0].temperature
+        for (let index = 1; index < hourlyForecastEntries.length; ++index) {
+            minTemperature = Math.min(minTemperature, hourlyForecastEntries[index].temperature)
+        }
+        return minTemperature
+    }
+    readonly property real hourlyTemperatureMax: {
+        if (!hasHourlyForecast) {
+            return 0
+        }
+
+        let maxTemperature = hourlyForecastEntries[0].temperature
+        for (let index = 1; index < hourlyForecastEntries.length; ++index) {
+            maxTemperature = Math.max(maxTemperature, hourlyForecastEntries[index].temperature)
+        }
+        return maxTemperature
+    }
     
     implicitWidth: useColumnLayout ? dockSize : 180
     implicitHeight: dockSize
+
+    function forecastCenterX(index) {
+        return forecastCellWidth / 2 + index * (forecastCellWidth + forecastCellSpacing)
+    }
+
+    function forecastPointY(temperature) {
+        const chartTopPadding = 26
+        const chartBottomPadding = 16
+        const usableHeight = Math.max(0, temperatureChartHeight - chartTopPadding - chartBottomPadding)
+        const range = hourlyTemperatureMax - hourlyTemperatureMin
+        if (range <= 0.01) {
+            return chartTopPadding + usableHeight / 2
+        }
+
+        return chartTopPadding + (hourlyTemperatureMax - temperature) / range * usableHeight
+    }
+
+    function temperatureLabelY(index, labelHeight) {
+        const pointY = forecastPointY(hourlyForecastEntries[index].temperature)
+        const preferredTop = pointY - labelHeight - 8
+        if (preferredTop >= 0) {
+            return preferredTop
+        }
+
+        return Math.min(temperatureChartHeight - labelHeight,
+                        pointY + 8)
+    }
 
     PanelToolTip {
         id: toolTip
@@ -39,7 +100,7 @@ AppletItem {
 
     HoverHandler {
         onHoveredChanged: {
-            if (hovered && toolTip.text.length > 0) {
+            if (hovered && !hourlyPopup.popupVisible && toolTip.text.length > 0) {
                 toolTipShowTimer.start()
             } else {
                 if (toolTipShowTimer.running) {
@@ -50,11 +111,210 @@ AppletItem {
         }
     }
 
+    PanelPopup {
+        id: hourlyPopup
+        width: hourlyPopupContainer.implicitWidth
+        height: hourlyPopupContainer.implicitHeight
+        popupX: DockPanelPositioner.x
+        popupY: DockPanelPositioner.y
+
+        onPopupVisibleChanged: {
+            if (popupVisible) {
+                toolTip.close()
+            }
+        }
+
+        Control {
+            id: hourlyPopupContainer
+            padding: 14
+            implicitWidth: Math.min(root.hourlyPopupContentWidth, root.hourlyPopupViewportWidth) + leftPadding + rightPadding
+            implicitHeight: hourlyForecastFlick.implicitHeight + topPadding + bottomPadding
+
+            contentItem: Flickable {
+                id: hourlyForecastFlick
+                implicitWidth: Math.min(root.hourlyPopupContentWidth,
+                                        root.hourlyPopupViewportWidth)
+                implicitHeight: forecastPopupContent.height
+                contentWidth: Math.max(width, root.hourlyPopupContentWidth)
+                contentHeight: forecastPopupContent.height
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.HorizontalFlick
+                interactive: contentWidth > width
+
+                ScrollBar.horizontal: ScrollBar {
+                    policy: hourlyForecastFlick.contentWidth > hourlyForecastFlick.width ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                }
+
+                Item {
+                    id: forecastPopupContent
+                    width: hourlyForecastFlick.contentWidth
+                    height: forecastColumn.implicitHeight
+
+                    Column {
+                        id: forecastColumn
+                        x: Math.max(root.forecastEdgeInset,
+                                    (forecastPopupContent.width - width) / 2)
+                        spacing: 12
+
+                        Item {
+                            id: temperatureChart
+                            width: root.forecastTrackWidth
+                            height: root.temperatureChartHeight
+
+                            Canvas {
+                                id: temperatureCurveCanvas
+                                anchors.fill: parent
+
+                                onPaint: {
+                                    const ctx = getContext("2d")
+                                    ctx.clearRect(0, 0, width, height)
+
+                                    if (!root.hasHourlyForecast) {
+                                        return
+                                    }
+
+                                    ctx.lineWidth = 2
+                                    ctx.strokeStyle = "rgba(186, 231, 255, 0.92)"
+                                    ctx.beginPath()
+
+                                    for (let index = 0; index < root.hourlyForecastEntries.length; ++index) {
+                                        const entry = root.hourlyForecastEntries[index]
+                                        const x = root.forecastCenterX(index)
+                                        const y = root.forecastPointY(entry.temperature)
+
+                                        if (index === 0) {
+                                            ctx.moveTo(x, y)
+                                        } else {
+                                            ctx.lineTo(x, y)
+                                        }
+                                    }
+
+                                    ctx.stroke()
+
+                                    ctx.fillStyle = "rgba(255, 255, 255, 0.95)"
+                                    for (let index = 0; index < root.hourlyForecastEntries.length; ++index) {
+                                        const entry = root.hourlyForecastEntries[index]
+                                        const x = root.forecastCenterX(index)
+                                        const y = root.forecastPointY(entry.temperature)
+
+                                        ctx.beginPath()
+                                        ctx.arc(x, y, 3.5, 0, Math.PI * 2)
+                                        ctx.fill()
+                                    }
+                                }
+
+                                Connections {
+                                    target: root
+                                    function onHourlyForecastEntriesChanged() {
+                                        temperatureCurveCanvas.requestPaint()
+                                    }
+                                    function onHourlyTemperatureMinChanged() {
+                                        temperatureCurveCanvas.requestPaint()
+                                    }
+                                    function onHourlyTemperatureMaxChanged() {
+                                        temperatureCurveCanvas.requestPaint()
+                                    }
+                                }
+
+                                onWidthChanged: requestPaint()
+                                onHeightChanged: requestPaint()
+                            }
+
+                            Repeater {
+                                model: root.hourlyForecastEntries
+
+                                delegate: Text {
+                                    required property int index
+                                    required property var modelData
+
+                                    x: root.forecastCenterX(index) - width / 2
+                                    y: root.temperatureLabelY(index, height)
+                                    text: modelData.formattedTemperature || ""
+                                    color: themeColors.text
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    opacity: 0.92
+                                    horizontalAlignment: Text.AlignHCenter
+                                    renderType: Text.NativeRendering
+                                }
+                            }
+                        }
+
+                        Row {
+                            id: hourlyForecastRow
+                            spacing: root.forecastCellSpacing
+
+                            Repeater {
+                                model: root.hourlyForecastEntries
+
+                                delegate: Column {
+                                    required property int index
+                                    required property var modelData
+
+                                    width: root.forecastCellWidth
+                                    spacing: 8
+
+                                    WeatherIcon {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: 34
+                                        height: 34
+                                        weatherCode: modelData.weatherCode || ""
+                                        iconNameOverride: modelData.iconName || ""
+                                        iconColor: themeColors.icon
+                                    }
+
+                                    Text {
+                                        width: parent.width
+                                        text: index === 0 ? qsTr("Now") : (modelData.displayHour || "")
+                                        color: themeColors.text
+                                        font.pixelSize: 10
+                                        horizontalAlignment: Text.AlignHCenter
+                                        elide: Text.ElideRight
+                                        opacity: 0.84
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Component.onCompleted: {
+            DockPanelPositioner.bounding = Qt.binding(function () {
+                const point = root.mapToItem(null, root.width / 2, root.height / 2)
+                return Qt.rect(point.x, point.y, hourlyPopup.width, hourlyPopup.height)
+            })
+        }
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+
+        onTapped: {
+            if (!root.hasHourlyForecast) {
+                return
+            }
+
+            if (hourlyPopup.popupVisible) {
+                hourlyPopup.close()
+            } else {
+                Panel.requestClosePopup()
+                hourlyPopup.open()
+            }
+
+            toolTip.close()
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         preventStealing: true
         onClicked: function(mouse) {
+            hourlyPopup.close()
             toolTip.close()
             locationMenuLoader.active = true
             locationMenuLoader.item.open()
@@ -111,6 +371,7 @@ AppletItem {
                 width: Math.min(parent.height - 2, parent.width - 2)
                 height: width
                 weatherCode: Applet.weather.weatherCode
+                iconNameOverride: Applet.weather.iconName
                 iconColor: themeColors.icon
             }
         }
