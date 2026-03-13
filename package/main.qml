@@ -13,7 +13,8 @@ AppletItem {
     objectName: "weather applet"
     
     property bool useColumnLayout: Panel.position % 2
-    property int dockOrder: 10
+    readonly property bool useClassicTaskbarLayout: Panel.itemAlignment === Dock.LeftAlignment
+    property int dockOrder: useClassicTaskbarLayout ? 21 : 10
     
     property int dockSize: Panel.rootObject.dockSize || 48
     readonly property var hourlyForecastEntries: Applet.weather.hourlyForecast || []
