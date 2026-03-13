@@ -17,6 +17,7 @@ AppletItem {
     property int dockOrder: useClassicTaskbarLayout ? 21 : 10
     
     property int dockSize: Panel.rootObject.dockSize || 48
+    readonly property int horizontalAppletMaxWidth: 180
     readonly property var hourlyForecastEntries: Applet.weather.hourlyForecast || []
     readonly property int forecastCellWidth: 60
     readonly property int forecastCellSpacing: 14
@@ -53,7 +54,8 @@ AppletItem {
         return maxTemperature
     }
     
-    implicitWidth: useColumnLayout ? dockSize : 180
+    implicitWidth: useColumnLayout ? dockSize : Math.min(horizontalAppletMaxWidth,
+                                                         weatherSummary.implicitWidth)
     implicitHeight: dockSize
 
     function forecastCenterX(index) {
@@ -381,12 +383,22 @@ AppletItem {
     // Main content: use explicit anchors so the icon/text gap stays stable
     // after the icon is visually trimmed inside WeatherIcon.
     Item {
+        id: weatherSummary
         anchors.fill: parent
         anchors.leftMargin: 2
         anchors.rightMargin: 2
         anchors.topMargin: 1
         anchors.bottomMargin: 1
         visible: !Applet.weather.isLoading && !Applet.weather.hasError
+        readonly property int horizontalPadding: anchors.leftMargin + anchors.rightMargin
+        readonly property int contentSpacing: 4
+        readonly property int textColumnMaxWidth: Math.max(0,
+                                                           root.horizontalAppletMaxWidth
+                                                           - horizontalPadding
+                                                           - iconSlot.width
+                                                           - contentSpacing)
+        implicitWidth: horizontalPadding + iconSlot.width + contentSpacing
+                       + textColumn.implicitWidth
         
         // Left: Weather icon
         Item {
@@ -410,23 +422,32 @@ AppletItem {
         
         // Right: Two rows
         ColumnLayout {
+            id: textColumn
             anchors.left: iconSlot.right
             // Keep a fixed visual gap from the icon's visible edge instead of
             // relying on RowLayout spacing against the icon canvas width.
-            anchors.leftMargin: 4
+            anchors.leftMargin: weatherSummary.contentSpacing
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
             
             // Row 1: Location + High/Low temp
             RowLayout {
+                id: topRow
                 spacing: 4
                 
                 Text {
                     id: cityLabel
                     text: Applet.weather.city
+                    width: Math.min(implicitWidth,
+                                    Math.max(0,
+                                             weatherSummary.textColumnMaxWidth
+                                             - (tempRangeLabel.visible
+                                                    ? topRow.spacing + tempRangeLabel.implicitWidth
+                                                    : 0)))
                     font.pixelSize: 10
                     color: themeColors.text
                     elide: Text.ElideRight
+                    visible: text.length > 0
                 }
                 
                 Text {
@@ -435,11 +456,13 @@ AppletItem {
                     font.pixelSize: 10
                     color: themeColors.text
                     opacity: 0.8
+                    visible: text.length > 0
                 }
             }
             
             // Row 2: Current temp + Weather description
             RowLayout {
+                id: bottomRow
                 spacing: 4
                 
                 Text {
@@ -453,10 +476,17 @@ AppletItem {
                 Text {
                     id: descLabel
                     text: Applet.weather.weatherDescription
+                    width: Math.min(implicitWidth,
+                                    Math.max(0,
+                                             weatherSummary.textColumnMaxWidth
+                                             - (tempLabel.visible
+                                                    ? bottomRow.spacing + tempLabel.implicitWidth
+                                                    : 0)))
                     font.pixelSize: 10
                     color: themeColors.text
                     opacity: 0.8
                     elide: Text.ElideRight
+                    visible: text.length > 0
                 }
             }
         }
