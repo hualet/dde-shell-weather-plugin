@@ -4,7 +4,7 @@
 Source: dde-shell-weather-plugin
 Section: utils
 Priority: optional
-Maintainer: Deepin Packages Builder <packages@deepin.org>
+Maintainer: HualetWang <mr.asianwang@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                cmake,
                pkg-config,
