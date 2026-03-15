@@ -11,7 +11,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find required packages
-find_package(Qt6 REQUIRED COMPONENTS Core LinguistTools Network Quick QuickControls2 Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core DBus LinguistTools Network Quick QuickControls2 Widgets)
 find_package(Qt6 OPTIONAL_COMPONENTS Positioning Location)
 find_package(Dtk6 REQUIRED COMPONENTS Core Widget)
 find_package(DDEShell REQUIRED)
@@ -33,6 +33,7 @@ target_include_directories(ds-weather-applet PRIVATE
 target_link_libraries(ds-weather-applet PRIVATE
     Dde::Shell
     Qt6::Core
+    Qt6::DBus
     Qt6::Network
     Qt6::Quick
     Qt6::QuickControls2

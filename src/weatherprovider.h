@@ -190,6 +190,7 @@ private slots:
   void onCityReplyFinished (QNetworkReply *reply);
   void onCitySearchReplyFinished (QNetworkReply *reply);
   void onIpLocationReplyFinished (QNetworkReply *reply);
+  void onPrepareForSleep (bool sleeping);
 
 #ifdef QT_POSITIONING_LIB
   void onPositionUpdated (const QGeoPositionInfo &info);
@@ -224,6 +225,9 @@ private:
   void startLocationLookup (LocationLookupPurpose purpose);
   void initLocationSource ();
   void requestLocationUpdate ();
+  void triggerRefresh (const QString &reason, bool force = false);
+  void resetRefreshTimer ();
+  bool isRefreshInProgress () const;
   void fetchLocationFromIp (const QString &reason);
   void useDefaultLocation (const QString &reason);
   void fetchWeather (double latitude, double longitude);
@@ -307,4 +311,5 @@ private:
   bool m_positionRequestPending;
   bool m_locationLookupInProgress;
   bool m_ipLocationRequestPending;
+  qint64 m_lastRefreshRequestAtMs;
 };

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "weatherprovider.h"
+#include <QDBusConnection>
 #include <QDateTime>
 #include <QDebug>
 #include <QFileInfo>
@@ -23,6 +24,8 @@ constexpr double kMetersPerSecondToKilometersPerHour = 3.6;
 constexpr double kMetersPerSecondToMilesPerHour = 2.2369362920544;
 constexpr double kDefaultLatitude = 39.9042;
 constexpr double kDefaultLongitude = 116.4074;
+constexpr int kRefreshIntervalMs = 30 * 60 * 1000;
+constexpr qint64 kRefreshDedupWindowMs = 60 * 1000;
 
 #ifdef QT_POSITIONING_LIB
 constexpr int kPositionRequestTimeoutMs = 10000;
@@ -296,7 +299,8 @@ WeatherProvider::WeatherProvider (QObject *parent)
       m_locationRequestSerial (0), m_positionSource (nullptr),
       m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
       m_geoclueAgentStopRequested (false), m_positionRequestPending (false),
-      m_locationLookupInProgress (false), m_ipLocationRequestPending (false)
+      m_locationLookupInProgress (false), m_ipLocationRequestPending (false),
+      m_lastRefreshRequestAtMs (0)
 {
 #ifdef QT_POSITIONING_LIB
   m_geoclueAgentProcess = new QProcess (this);
@@ -313,8 +317,35 @@ WeatherProvider::WeatherProvider (QObject *parent)
 #endif
 
   // Setup refresh timer (update every 30 minutes)
-  connect (m_refreshTimer, &QTimer::timeout, this, &WeatherProvider::refresh);
-  m_refreshTimer->start (30 * 60 * 1000);
+  connect (m_refreshTimer, &QTimer::timeout, this,
+           [this] () { triggerRefresh (QStringLiteral ("periodic-timer")); });
+  resetRefreshTimer ();
+
+  QDBusConnection systemBus = QDBusConnection::systemBus ();
+  if (!systemBus.isConnected ())
+    {
+      qWarning () << "System D-Bus unavailable; suspend resume refresh "
+                     "monitoring disabled";
+    }
+  else
+    {
+      const bool connected = systemBus.connect (
+          QStringLiteral ("org.freedesktop.login1"),
+          QStringLiteral ("/org/freedesktop/login1"),
+          QStringLiteral ("org.freedesktop.login1.Manager"),
+          QStringLiteral ("PrepareForSleep"), this,
+          SLOT (onPrepareForSleep (bool)));
+
+      if (!connected)
+        {
+          qWarning () << "Failed to subscribe to login1 PrepareForSleep";
+        }
+      else
+        {
+          qInfo () << "Suspend resume monitoring enabled"
+                   << "signal=org.freedesktop.login1.Manager.PrepareForSleep";
+        }
+    }
 
   // Initialize location source
 }
@@ -492,10 +523,62 @@ WeatherProvider::initLocationSource ()
 void
 WeatherProvider::refresh ()
 {
+  triggerRefresh (QStringLiteral ("manual"), true);
+}
+
+void
+WeatherProvider::onPrepareForSleep (bool sleeping)
+{
+  qInfo () << "System sleep state changed"
+           << "sleeping=" << sleeping;
+
+  if (sleeping)
+    {
+      return;
+    }
+
+  triggerRefresh (QStringLiteral ("system-resume"));
+}
+
+void
+WeatherProvider::triggerRefresh (const QString &reason, bool force)
+{
+  const qint64 currentMs = nowMs ();
+  const qint64 elapsedSinceLastRequest
+      = m_lastRefreshRequestAtMs > 0 ? currentMs - m_lastRefreshRequestAtMs
+                                     : -1;
+
   qInfo () << "Weather refresh requested"
-           << "latitude=" << m_latitude << "longitude=" << m_longitude
-           << "loading=" << m_isLoading
-           << "autoLocationEnabled=" << m_autoLocationEnabled;
+           << "reason=" << reason << "latitude=" << m_latitude
+           << "longitude=" << m_longitude << "loading=" << m_isLoading
+           << "autoLocationEnabled=" << m_autoLocationEnabled
+           << "locationLookupInProgress=" << m_locationLookupInProgress
+           << "ipLocationPending=" << m_ipLocationRequestPending
+#ifdef QT_POSITIONING_LIB
+           << "positionPending=" << m_positionRequestPending
+#endif
+           << "elapsedSinceLastRequestMs=" << elapsedSinceLastRequest;
+
+  if (!force && elapsedSinceLastRequest >= 0
+      && elapsedSinceLastRequest < kRefreshDedupWindowMs)
+    {
+      qInfo () << "Skipping duplicate weather refresh"
+               << "reason=" << reason
+               << "elapsedSinceLastRequestMs=" << elapsedSinceLastRequest;
+      resetRefreshTimer ();
+      return;
+    }
+
+  if (isRefreshInProgress ())
+    {
+      qInfo () << "Skipping weather refresh while request is in progress"
+               << "reason=" << reason;
+      resetRefreshTimer ();
+      return;
+    }
+
+  m_lastRefreshRequestAtMs = currentMs;
+  resetRefreshTimer ();
 
   if (m_autoLocationEnabled)
     {
@@ -511,6 +594,23 @@ WeatherProvider::refresh ()
     {
       requestLocationUpdate ();
     }
+}
+
+void
+WeatherProvider::resetRefreshTimer ()
+{
+  m_refreshTimer->start (kRefreshIntervalMs);
+}
+
+bool
+WeatherProvider::isRefreshInProgress () const
+{
+  return m_isLoading || m_locationLookupInProgress
+         || m_ipLocationRequestPending
+#ifdef QT_POSITIONING_LIB
+         || m_positionRequestPending
+#endif
+      ;
 }
 
 void
