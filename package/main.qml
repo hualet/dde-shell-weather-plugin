@@ -531,7 +531,16 @@ AppletItem {
         active: false
         sourceComponent: LP.Menu {
             LP.MenuItem {
-                text: qsTr("Location Settings")
+                text: qsTr("Refresh")
+                onTriggered: {
+                    if (Applet.weather) {
+                        Applet.weather.refresh()
+                    }
+                }
+            }
+
+            LP.MenuItem {
+                text: qsTr("Settings")
                 onTriggered: {
                     Applet.showSettings()
                 }
