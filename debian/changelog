@@ -1,3 +1,11 @@
+dde-shell-weather-plugin (1.4.0-1) unstable; urgency=medium
+
+  * Refresh weather immediately after system resume.
+  * Add a manual refresh action and improve refresh loading feedback.
+  * Update menu translations and bump upstream version to 1.4.0.
+
+ -- Deepin Packages Builder <packages@deepin.org>  Sun, 15 Mar 2026 10:45:49 +0800
+
 dde-shell-weather-plugin (1.3.0-1) unstable; urgency=medium
 
   * Bump upstream version to 1.3.0.
