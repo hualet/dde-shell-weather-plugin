@@ -51,6 +51,7 @@ class WeatherProvider : public QObject
   Q_PROPERTY (
       QString weatherDescription READ weatherDescription NOTIFY weatherChanged)
   Q_PROPERTY (bool isLoading READ isLoading NOTIFY loadingChanged)
+  Q_PROPERTY (bool hasValidWeather READ hasValidWeather NOTIFY weatherChanged)
   Q_PROPERTY (bool hasError READ hasError NOTIFY errorChanged)
   Q_PROPERTY (QString errorMessage READ errorMessage NOTIFY errorChanged)
   Q_PROPERTY (double temperatureMax READ temperatureMax NOTIFY weatherChanged)
@@ -136,6 +137,11 @@ public:
   isLoading () const
   {
     return m_isLoading;
+  }
+  bool
+  hasValidWeather () const
+  {
+    return m_weatherData.isValid;
   }
   bool
   hasError () const

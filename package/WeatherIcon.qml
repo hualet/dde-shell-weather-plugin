@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 
 Item {
     id: root
@@ -9,6 +10,7 @@ Item {
     property string weatherCode: "0"
     property string iconNameOverride: ""
     property color iconColor: "white"
+    property bool loading: false
     readonly property string iconName: iconNameOverride.length > 0 ? iconNameOverride : getIconName(weatherCode)
     readonly property real sourceCanvasWidth: 56
     readonly property real sourceCanvasHeight: 48
@@ -128,10 +130,36 @@ Item {
         smooth: true
         antialiasing: true
         asynchronous: true
-        
+        opacity: root.loading ? 0 : 1
+        visible: opacity > 0
+
         onStatusChanged: {
             if (status === Image.Error) {
                 source = Qt.resolvedUrl("icons/cloudy.svg")
+            }
+        }
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 160
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
+
+    BusyIndicator {
+        id: refreshIndicator
+        anchors.centerIn: parent
+        width: Math.max(18, Math.min(root.width, root.height) * 0.72)
+        height: width
+        running: root.loading
+        opacity: root.loading ? 1 : 0
+        visible: running || opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 160
+                easing.type: Easing.OutCubic
             }
         }
     }

@@ -27,6 +27,7 @@ AppletItem {
     readonly property int temperatureChartHeight: 82
     readonly property int hourlyPopupViewportWidth: useColumnLayout ? 320 : 520
     readonly property bool hasHourlyForecast: hourlyForecastEntries.length > 0
+    readonly property bool hasWeatherData: Applet.weather && Applet.weather.hasValidWeather
     readonly property real forecastTrackWidth: hasHourlyForecast
                                               ? forecastCellWidth * hourlyForecastEntries.length
                                                 + forecastCellSpacing * (hourlyForecastEntries.length - 1)
@@ -388,7 +389,7 @@ AppletItem {
     // Loading indicator
     BusyIndicator {
         anchors.centerIn: parent
-        running: Applet.weather.isLoading
+        running: Applet.weather.isLoading && !root.hasWeatherData
         visible: running
         width: 20
         height: 20
@@ -415,7 +416,7 @@ AppletItem {
         anchors.rightMargin: 2
         anchors.topMargin: 1
         anchors.bottomMargin: 1
-        visible: !Applet.weather.isLoading && !Applet.weather.hasError
+        visible: root.hasWeatherData && !Applet.weather.hasError
         readonly property int horizontalPadding: anchors.leftMargin + anchors.rightMargin
         readonly property int contentSpacing: 4
         readonly property int textColumnMaxWidth: Math.max(0,
@@ -443,6 +444,7 @@ AppletItem {
                 weatherCode: Applet.weather.weatherCode
                 iconNameOverride: Applet.weather.iconName
                 iconColor: themeColors.icon
+                loading: Applet.weather.isLoading
             }
         }
         
