@@ -234,6 +234,9 @@ private:
   void triggerRefresh (const QString &reason, bool force = false);
   void resetRefreshTimer ();
   bool isRefreshInProgress () const;
+  void cancelRefreshInProgress (const QString &reason);
+  void scheduleRetry (const QString &reason);
+  void cancelScheduledRetry ();
   void fetchLocationFromIp (const QString &reason);
   void useDefaultLocation (const QString &reason);
   void fetchWeather (double latitude, double longitude);
@@ -244,9 +247,11 @@ private:
   void updateAutoLocationCache (double latitude, double longitude,
                                 const QString &city);
   void fetchWeatherFromBackend (WeatherBackend backend, double latitude,
-                                double longitude);
-  void fetchMetNoWeather (double latitude, double longitude);
-  void fetchOpenMeteoWeather (double latitude, double longitude);
+                                double longitude, quint64 requestSerial);
+  void fetchMetNoWeather (double latitude, double longitude,
+                          quint64 requestSerial);
+  void fetchOpenMeteoWeather (double latitude, double longitude,
+                              quint64 requestSerial);
   void fetchCityName (double latitude, double longitude,
                       LocationLookupPurpose purpose, quint64 requestSerial);
   bool hasManualLocationPreference () const;
@@ -258,7 +263,7 @@ private:
   QVariantList parseOpenMeteoHourlyForecast (const QJsonObject &root) const;
   void finishWeatherRequest ();
   bool fallbackToNextBackend (WeatherBackend backend, double latitude,
-                              double longitude);
+                              double longitude, quint64 requestSerial);
   static QString backendName (WeatherBackend backend);
   static QString locationBackendName (LocationBackend backend);
   QVariantMap buildHourlyForecastEntry (const QDateTime &time,
@@ -282,6 +287,7 @@ private:
 private:
   QNetworkAccessManager *m_networkManager;
   QTimer *m_refreshTimer;
+  QTimer *m_retryTimer;
   WeatherData m_weatherData;
   double m_latitude;
   double m_longitude;
@@ -299,9 +305,12 @@ private:
   double m_lastAutoLongitude;
   QVariantList m_hourlyForecast;
   QVariantList m_citySuggestions;
+  QPointer<QNetworkReply> m_weatherReply;
+  QPointer<QNetworkReply> m_ipLocationReply;
   QPointer<QNetworkReply> m_citySearchReply;
   bool m_isSearchingCities;
   quint64 m_citySearchRequestSerial;
+  quint64 m_weatherRequestSerial;
   LocationLookupPurpose m_locationLookupPurpose;
   quint64 m_locationRequestSerial;
 

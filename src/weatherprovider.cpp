@@ -25,6 +25,8 @@ constexpr double kMetersPerSecondToMilesPerHour = 2.2369362920544;
 constexpr double kDefaultLatitude = 39.9042;
 constexpr double kDefaultLongitude = 116.4074;
 constexpr int kRefreshIntervalMs = 30 * 60 * 1000;
+constexpr int kRetryIntervalMs = 15 * 1000;
+constexpr int kNetworkRequestTimeoutMs = 15 * 1000;
 constexpr qint64 kRefreshDedupWindowMs = 60 * 1000;
 
 #ifdef QT_POSITIONING_LIB
@@ -38,6 +40,17 @@ qint64
 nowMs ()
 {
   return QDateTime::currentMSecsSinceEpoch ();
+}
+
+void
+configureJsonRequest (QNetworkRequest *request)
+{
+  request->setTransferTimeout (kNetworkRequestTimeoutMs);
+  request->setRawHeader (
+      "User-Agent",
+      "dde-shell-weather-plugin/1.0 "
+      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
+  request->setRawHeader ("Accept", "application/json");
 }
 
 QLocale
@@ -288,13 +301,14 @@ logGeoclueAgentOutput (QProcess *process)
 
 WeatherProvider::WeatherProvider (QObject *parent)
     : QObject (parent), m_networkManager (new QNetworkAccessManager (this)),
-      m_refreshTimer (new QTimer (this)), m_latitude (0), m_longitude (0),
-      m_isLoading (false), m_hasError (false),
+      m_refreshTimer (new QTimer (this)), m_retryTimer (new QTimer (this)),
+      m_latitude (0), m_longitude (0), m_isLoading (false), m_hasError (false),
       m_providerName (tr ("MET Norway")), m_initialized (false),
       m_autoLocationEnabled (true), m_manualLatitude (0),
       m_manualLongitude (0), m_lastAutoLatitude (0), m_lastAutoLongitude (0),
+      m_weatherReply (nullptr), m_ipLocationReply (nullptr),
       m_citySearchReply (nullptr), m_isSearchingCities (false),
-      m_citySearchRequestSerial (0),
+      m_citySearchRequestSerial (0), m_weatherRequestSerial (0),
       m_locationLookupPurpose (LocationLookupPurpose::WeatherUpdate),
       m_locationRequestSerial (0), m_positionSource (nullptr),
       m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
@@ -319,6 +333,10 @@ WeatherProvider::WeatherProvider (QObject *parent)
   // Setup refresh timer (update every 30 minutes)
   connect (m_refreshTimer, &QTimer::timeout, this,
            [this] () { triggerRefresh (QStringLiteral ("periodic-timer")); });
+  m_retryTimer->setSingleShot (true);
+  connect (m_retryTimer, &QTimer::timeout, this, [this] () {
+    triggerRefresh (QStringLiteral ("network-retry"), true);
+  });
   resetRefreshTimer ();
 
   QDBusConnection systemBus = QDBusConnection::systemBus ();
@@ -352,6 +370,16 @@ WeatherProvider::WeatherProvider (QObject *parent)
 
 WeatherProvider::~WeatherProvider ()
 {
+  if (m_weatherReply)
+    {
+      m_weatherReply->abort ();
+    }
+
+  if (m_ipLocationReply)
+    {
+      m_ipLocationReply->abort ();
+    }
+
   if (m_citySearchReply)
     {
       m_citySearchReply->abort ();
@@ -537,7 +565,7 @@ WeatherProvider::onPrepareForSleep (bool sleeping)
       return;
     }
 
-  triggerRefresh (QStringLiteral ("system-resume"));
+  triggerRefresh (QStringLiteral ("system-resume"), true);
 }
 
 void
@@ -571,12 +599,20 @@ WeatherProvider::triggerRefresh (const QString &reason, bool force)
 
   if (isRefreshInProgress ())
     {
-      qInfo () << "Skipping weather refresh while request is in progress"
-               << "reason=" << reason;
-      resetRefreshTimer ();
-      return;
+      if (force)
+        {
+          cancelRefreshInProgress (reason);
+        }
+      else
+        {
+          qInfo () << "Skipping weather refresh while request is in progress"
+                   << "reason=" << reason;
+          resetRefreshTimer ();
+          return;
+        }
     }
 
+  cancelScheduledRetry ();
   m_lastRefreshRequestAtMs = currentMs;
   resetRefreshTimer ();
 
@@ -594,6 +630,66 @@ WeatherProvider::triggerRefresh (const QString &reason, bool force)
     {
       requestLocationUpdate ();
     }
+}
+
+void
+WeatherProvider::cancelRefreshInProgress (const QString &reason)
+{
+  qInfo () << "Cancelling in-progress weather refresh"
+           << "reason=" << reason;
+
+  if (m_weatherReply)
+    {
+      ++m_weatherRequestSerial;
+      QNetworkReply *reply = m_weatherReply;
+      m_weatherReply = nullptr;
+      reply->abort ();
+    }
+
+  if (m_ipLocationReply)
+    {
+      ++m_locationRequestSerial;
+      QNetworkReply *reply = m_ipLocationReply;
+      m_ipLocationReply = nullptr;
+      m_ipLocationRequestPending = false;
+      reply->abort ();
+    }
+
+  if (m_locationLookupInProgress)
+    {
+      ++m_locationRequestSerial;
+      m_locationLookupInProgress = false;
+    }
+
+#ifdef QT_POSITIONING_LIB
+  if (m_positionSource)
+    {
+      m_positionSource->stopUpdates ();
+    }
+  stopGeoclueAgent ();
+#endif
+
+  finishWeatherRequest ();
+}
+
+void
+WeatherProvider::scheduleRetry (const QString &reason)
+{
+  qInfo () << "Scheduling weather retry"
+           << "reason=" << reason << "delayMs=" << kRetryIntervalMs;
+  m_retryTimer->start (kRetryIntervalMs);
+}
+
+void
+WeatherProvider::cancelScheduledRetry ()
+{
+  if (!m_retryTimer->isActive ())
+    {
+      return;
+    }
+
+  qInfo () << "Cancelling scheduled weather retry";
+  m_retryTimer->stop ();
 }
 
 void
@@ -649,11 +745,7 @@ WeatherProvider::searchCities (const QString &query)
            << "query=" << trimmedQuery << "url=" << url.toString ();
 
   QNetworkRequest request (url);
-  request.setRawHeader (
-      "User-Agent",
-      "dde-shell-weather-plugin/1.0 "
-      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
-  request.setRawHeader ("Accept", "application/json");
+  configureJsonRequest (&request);
 
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("requestStartedAt", nowMs ());
@@ -974,15 +1066,14 @@ WeatherProvider::fetchLocationFromIp (const QString &reason)
            << "reason=" << reason << "url=" << url.toString ();
 
   QNetworkRequest request (url);
-  request.setRawHeader (
-      "User-Agent",
-      "dde-shell-weather-plugin/1.0 "
-      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
-  request.setRawHeader ("Accept", "application/json");
+  configureJsonRequest (&request);
 
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("requestStartedAt", nowMs ());
   reply->setProperty ("reason", reason);
+  reply->setProperty ("requestSerial",
+                      static_cast<qulonglong> (m_locationRequestSerial));
+  m_ipLocationReply = reply;
   m_ipLocationRequestPending = true;
 
   connect (reply, &QNetworkReply::finished, this,
@@ -992,6 +1083,8 @@ WeatherProvider::fetchLocationFromIp (const QString &reason)
 void
 WeatherProvider::fetchWeather (double latitude, double longitude)
 {
+  const quint64 requestSerial = ++m_weatherRequestSerial;
+
   if (!m_isLoading)
     {
       m_isLoading = true;
@@ -1005,26 +1098,29 @@ WeatherProvider::fetchWeather (double latitude, double longitude)
       emit errorChanged ();
     }
 
-  fetchWeatherFromBackend (WeatherBackend::MetNo, latitude, longitude);
+  fetchWeatherFromBackend (WeatherBackend::MetNo, latitude, longitude,
+                           requestSerial);
 }
 
 void
 WeatherProvider::fetchWeatherFromBackend (WeatherBackend backend,
-                                          double latitude, double longitude)
+                                          double latitude, double longitude,
+                                          quint64 requestSerial)
 {
   switch (backend)
     {
     case WeatherBackend::MetNo:
-      fetchMetNoWeather (latitude, longitude);
+      fetchMetNoWeather (latitude, longitude, requestSerial);
       return;
     case WeatherBackend::OpenMeteo:
-      fetchOpenMeteoWeather (latitude, longitude);
+      fetchOpenMeteoWeather (latitude, longitude, requestSerial);
       return;
     }
 }
 
 void
-WeatherProvider::fetchMetNoWeather (double latitude, double longitude)
+WeatherProvider::fetchMetNoWeather (double latitude, double longitude,
+                                    quint64 requestSerial)
 {
   QUrl url ("https://api.met.no/weatherapi/locationforecast/2.0/compact");
   QUrlQuery query;
@@ -1032,30 +1128,29 @@ WeatherProvider::fetchMetNoWeather (double latitude, double longitude)
   query.addQueryItem ("lon", QString::number (longitude, 'f', 4));
   url.setQuery (query);
 
-  QNetworkRequest request (url);
-  request.setRawHeader (
-      "User-Agent",
-      "dde-shell-weather-plugin/1.0 "
-      "(https://github.com/linuxdeepin/dde-shell-weather-plugin)");
-  request.setRawHeader ("Accept", "application/json");
-
   qInfo () << "Weather request start"
            << "backend=" << backendName (WeatherBackend::MetNo)
            << "latitude=" << latitude << "longitude=" << longitude
            << "url=" << url.toString ();
 
+  QNetworkRequest request (url);
+  configureJsonRequest (&request);
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("backend", static_cast<int> (WeatherBackend::MetNo));
   reply->setProperty ("latitude", latitude);
   reply->setProperty ("longitude", longitude);
   reply->setProperty ("requestStartedAt", nowMs ());
+  reply->setProperty ("requestSerial",
+                      static_cast<qulonglong> (requestSerial));
+  m_weatherReply = reply;
 
   connect (reply, &QNetworkReply::finished, this,
            [this, reply] () { onWeatherReplyFinished (reply); });
 }
 
 void
-WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
+WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude,
+                                        quint64 requestSerial)
 {
   const QLocale locale = formatLocale ();
   QUrl url ("https://api.open-meteo.com/v1/forecast");
@@ -1077,11 +1172,15 @@ WeatherProvider::fetchOpenMeteoWeather (double latitude, double longitude)
            << "url=" << url.toString ();
 
   QNetworkRequest request (url);
+  configureJsonRequest (&request);
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("backend", static_cast<int> (WeatherBackend::OpenMeteo));
   reply->setProperty ("latitude", latitude);
   reply->setProperty ("longitude", longitude);
   reply->setProperty ("requestStartedAt", nowMs ());
+  reply->setProperty ("requestSerial",
+                      static_cast<qulonglong> (requestSerial));
+  m_weatherReply = reply;
 
   connect (reply, &QNetworkReply::finished, this,
            [this, reply] () { onWeatherReplyFinished (reply); });
@@ -1105,6 +1204,7 @@ WeatherProvider::fetchCityName (double latitude, double longitude,
            << "url=" << url.toString ();
 
   QNetworkRequest request (url);
+  configureJsonRequest (&request);
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("requestStartedAt", nowMs ());
   reply->setProperty ("latitude", latitude);
@@ -1124,15 +1224,31 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
       = static_cast<WeatherBackend> (reply->property ("backend").toInt ());
   const double latitude = reply->property ("latitude").toDouble ();
   const double longitude = reply->property ("longitude").toDouble ();
+  const quint64 requestSerial
+      = reply->property ("requestSerial").toULongLong ();
   const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
   const qint64 elapsedMs = startedAt > 0 ? nowMs () - startedAt : -1;
   const QVariant httpStatus
       = reply->attribute (QNetworkRequest::HttpStatusCodeAttribute);
 
+  if (reply == m_weatherReply)
+    {
+      m_weatherReply = nullptr;
+    }
+
   qInfo () << "Weather request finished"
            << "backend=" << backendName (backend) << "elapsedMs=" << elapsedMs
            << "httpStatus=" << httpStatus
            << "networkError=" << reply->error ();
+
+  if (requestSerial != 0 && requestSerial != m_weatherRequestSerial)
+    {
+      qInfo () << "Ignoring stale weather reply"
+               << "replySerial=" << requestSerial
+               << "currentSerial=" << m_weatherRequestSerial;
+      reply->deleteLater ();
+      return;
+    }
 
   reply->deleteLater ();
 
@@ -1142,7 +1258,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
                   << "backend=" << backendName (backend)
                   << "elapsedMs=" << elapsedMs
                   << "message=" << reply->errorString ();
-      if (fallbackToNextBackend (backend, latitude, longitude))
+      if (fallbackToNextBackend (backend, latitude, longitude, requestSerial))
         {
           return;
         }
@@ -1151,6 +1267,8 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
       m_hasError = true;
       m_errorMessage = reply->errorString ();
       emit errorChanged ();
+      scheduleRetry (
+          QStringLiteral ("weather-error:%1").arg (reply->errorString ()));
       return;
     }
 
@@ -1181,7 +1299,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
       qWarning () << "Unexpected weather payload"
                   << "backend=" << backendName (backend)
                   << "elapsedMs=" << elapsedMs;
-      if (fallbackToNextBackend (backend, latitude, longitude))
+      if (fallbackToNextBackend (backend, latitude, longitude, requestSerial))
         {
           return;
         }
@@ -1206,6 +1324,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
            << "elapsedMs=" << elapsedMs;
 
   finishWeatherRequest ();
+  cancelScheduledRetry ();
   m_weatherData.isValid = true;
   emit weatherChanged ();
 }
@@ -1389,32 +1508,52 @@ WeatherProvider::onCitySearchReplyFinished (QNetworkReply *reply)
 void
 WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
 {
+  const quint64 requestSerial
+      = reply->property ("requestSerial").toULongLong ();
   const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
   const qint64 elapsedMs = startedAt > 0 ? nowMs () - startedAt : -1;
   const QString reason = reply->property ("reason").toString ();
   const QVariant httpStatus
       = reply->attribute (QNetworkRequest::HttpStatusCodeAttribute);
+  const bool isCurrentReply = reply == m_ipLocationReply;
+
+  if (isCurrentReply)
+    {
+      m_ipLocationReply = nullptr;
+      m_ipLocationRequestPending = false;
+    }
 
   qInfo () << "IP geolocation request finished"
            << "elapsedMs=" << elapsedMs << "httpStatus=" << httpStatus
            << "networkError=" << reply->error () << "reason=" << reason;
 
-  m_ipLocationRequestPending = false;
   const QByteArray data = reply->readAll ();
-  reply->deleteLater ();
+  if (requestSerial != 0 && requestSerial != m_locationRequestSerial)
+    {
+      qInfo () << "Ignoring stale IP geolocation reply"
+               << "replySerial=" << requestSerial
+               << "currentSerial=" << m_locationRequestSerial;
+      reply->deleteLater ();
+      return;
+    }
 
   if (!m_locationLookupInProgress)
     {
       qInfo () << "Ignoring stale IP geolocation reply"
                << "elapsedMs=" << elapsedMs;
+      reply->deleteLater ();
       return;
     }
+
+  reply->deleteLater ();
 
   if (reply->error () != QNetworkReply::NoError)
     {
       qWarning () << "IP geolocation failed"
                   << "elapsedMs=" << elapsedMs << "reason=" << reason
                   << "message=" << reply->errorString ();
+      scheduleRetry (
+          QStringLiteral ("ip-location-error:%1").arg (reply->errorString ()));
       useDefaultLocation (
           QStringLiteral ("ip-network-error:%1").arg (reply->errorString ()));
       return;
@@ -1971,7 +2110,8 @@ WeatherProvider::finishWeatherRequest ()
 
 bool
 WeatherProvider::fallbackToNextBackend (WeatherBackend backend,
-                                        double latitude, double longitude)
+                                        double latitude, double longitude,
+                                        quint64 requestSerial)
 {
   if (backend == WeatherBackend::MetNo)
     {
@@ -1979,7 +2119,8 @@ WeatherProvider::fallbackToNextBackend (WeatherBackend backend,
                   << "from=" << backendName (backend)
                   << "to=" << backendName (WeatherBackend::OpenMeteo)
                   << "latitude=" << latitude << "longitude=" << longitude;
-      fetchWeatherFromBackend (WeatherBackend::OpenMeteo, latitude, longitude);
+      fetchWeatherFromBackend (WeatherBackend::OpenMeteo, latitude, longitude,
+                               requestSerial);
       return true;
     }
 
