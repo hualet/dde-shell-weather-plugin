@@ -1,3 +1,11 @@
+dde-shell-weather-plugin (1.5.0-1) unstable; urgency=medium
+
+  * Add one-shot animated SVG weather icons to the dock applet.
+  * Keep hourly forecast icons static and refine icon centering.
+  * Bump upstream version to 1.5.0.
+
+ -- HualetWang <mr.asianwang@gmail.com>  Mon, 30 Mar 2026 10:43:45 +0800
+
 dde-shell-weather-plugin (1.4.0-1) unstable; urgency=medium
 
   * Refresh weather immediately after system resume.
