@@ -34,6 +34,7 @@ private slots:
   void weatherIconExposesAnimatedProperty ();
   void staticModeDisablesSvgAnimation ();
   void animatedSvgItemStopsAfterOneCycle ();
+  void animatedSvgItemReplayRestartsAnimation ();
 };
 
 void
@@ -89,6 +90,30 @@ AnimatedSvgItemTest::animatedSvgItemStopsAfterOneCycle ()
   if (rawDuration > 0)
     durationMs = (rawDuration > 100) ? rawDuration : rawDuration * 1000;
 
+  QTRY_VERIFY_WITH_TIMEOUT (!renderer->isAnimationEnabled (),
+                            durationMs + 1500);
+}
+
+void
+AnimatedSvgItemTest::animatedSvgItemReplayRestartsAnimation ()
+{
+  AnimatedSvgItem item;
+  item.setSource (sourceFileUrl ("package/icons/tropical-storm.svg"));
+
+  auto *renderer = item.findChild<QSvgRenderer *> ();
+  QVERIFY (renderer != nullptr);
+  QVERIFY (renderer->animated ());
+
+  const int rawDuration = renderer->animationDuration ();
+  int durationMs = 3000;
+  if (rawDuration > 0)
+    durationMs = (rawDuration > 100) ? rawDuration : rawDuration * 1000;
+
+  QTRY_VERIFY_WITH_TIMEOUT (!renderer->isAnimationEnabled (),
+                            durationMs + 1500);
+
+  item.replay ();
+  QVERIFY (renderer->isAnimationEnabled ());
   QTRY_VERIFY_WITH_TIMEOUT (!renderer->isAnimationEnabled (),
                             durationMs + 1500);
 }

@@ -12,8 +12,15 @@ Item {
     property string iconNameOverride: ""
     property color iconColor: "white"
     property bool loading: false
+    property int animationTrigger: 0
     property alias animated: weatherIcon.animated
     readonly property string iconName: iconNameOverride.length > 0 ? iconNameOverride : getIconName(weatherCode)
+
+    onAnimationTriggerChanged: {
+        if (animated) {
+            weatherIcon.replay()
+        }
+    }
 
     implicitWidth: 48
     implicitHeight: 48

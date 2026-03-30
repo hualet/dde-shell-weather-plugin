@@ -53,6 +53,18 @@ AnimatedSvgItem::paint (QPainter *painter)
   m_renderer->render (painter, bounds);
 }
 
+void
+AnimatedSvgItem::replay ()
+{
+  if (!m_animated || !m_renderer->isValid () || !m_renderer->animated ())
+    {
+      return;
+    }
+
+  stopAnimation ();
+  playAnimationOnce ();
+}
+
 QString
 AnimatedSvgItem::source () const
 {

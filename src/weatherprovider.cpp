@@ -309,6 +309,7 @@ WeatherProvider::WeatherProvider (QObject *parent)
       m_weatherReply (nullptr), m_ipLocationReply (nullptr),
       m_citySearchReply (nullptr), m_isSearchingCities (false),
       m_citySearchRequestSerial (0), m_weatherRequestSerial (0),
+      m_weatherUpdateSerial (0),
       m_locationLookupPurpose (LocationLookupPurpose::WeatherUpdate),
       m_locationRequestSerial (0), m_positionSource (nullptr),
       m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
@@ -1326,6 +1327,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
   finishWeatherRequest ();
   cancelScheduledRetry ();
   m_weatherData.isValid = true;
+  ++m_weatherUpdateSerial;
   emit weatherChanged ();
 }
 

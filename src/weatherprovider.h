@@ -72,6 +72,7 @@ class WeatherProvider : public QObject
   Q_PROPERTY (
       QString temperatureUnit READ temperatureUnit NOTIFY weatherChanged)
   Q_PROPERTY (QString windSpeedUnit READ windSpeedUnit NOTIFY weatherChanged)
+  Q_PROPERTY (qulonglong updateSerial READ updateSerial NOTIFY weatherChanged)
 
 public:
   explicit WeatherProvider (QObject *parent = nullptr);
@@ -167,6 +168,11 @@ public:
   QString tooltipText () const;
   QString temperatureUnit () const;
   QString windSpeedUnit () const;
+  qulonglong
+  updateSerial () const
+  {
+    return m_weatherUpdateSerial;
+  }
   bool autoLocationEnabled () const;
   QString manualLocationCity () const;
   double manualLocationLatitude () const;
@@ -311,6 +317,7 @@ private:
   bool m_isSearchingCities;
   quint64 m_citySearchRequestSerial;
   quint64 m_weatherRequestSerial;
+  quint64 m_weatherUpdateSerial;
   LocationLookupPurpose m_locationLookupPurpose;
   quint64 m_locationRequestSerial;
 

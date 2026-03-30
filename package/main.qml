@@ -443,6 +443,7 @@ AppletItem {
                 height: width
                 weatherCode: Applet.weather.weatherCode
                 iconNameOverride: Applet.weather.iconName
+                animationTrigger: Applet.weather.updateSerial
                 iconColor: themeColors.icon
                 loading: Applet.weather.isLoading
             }

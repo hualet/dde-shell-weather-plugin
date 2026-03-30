@@ -21,6 +21,7 @@ public:
   ~AnimatedSvgItem () override;
 
   void paint (QPainter *painter) override;
+  Q_INVOKABLE void replay ();
 
   QString source () const;
   void setSource (const QString &source);
