@@ -11,13 +11,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find required packages
-find_package(Qt6 REQUIRED COMPONENTS Core DBus LinguistTools Network Quick QuickControls2 Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core DBus LinguistTools Network Quick QuickControls2 Svg Widgets)
 find_package(Qt6 OPTIONAL_COMPONENTS Positioning Location)
 find_package(Dtk6 REQUIRED COMPONENTS Core Widget)
 find_package(DDEShell REQUIRED)
 
 # Create plugin library
 add_library(ds-weather-applet SHARED
+    src/animatedsvgitem.h
+    src/animatedsvgitem.cpp
     src/locationsettingsdialog.h
     src/locationsettingsdialog.cpp
     src/weatherapplet.h
@@ -37,6 +39,7 @@ target_link_libraries(ds-weather-applet PRIVATE
     Qt6::Network
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::Svg
     Qt6::Widgets
     Dtk6::Core
     Dtk6::Widget
@@ -84,3 +87,37 @@ install(
     TARGETS ds-weather-applet
     DESTINATION ${DDE_SHELL_PLUGIN_INSTALL_DIR}/
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Qml Test)
+
+    add_executable(animatedsvgitem_tests
+        tests/animatedsvgitem_test.cpp
+        src/animatedsvgitem.h
+        src/animatedsvgitem.cpp
+    )
+
+    target_include_directories(animatedsvgitem_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_compile_definitions(animatedsvgitem_tests PRIVATE
+        DS_WEATHER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+
+    target_link_libraries(animatedsvgitem_tests PRIVATE
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Svg
+        Qt6::Test
+    )
+
+    add_test(NAME animatedsvgitem_tests COMMAND animatedsvgitem_tests)
+    set_tests_properties(animatedsvgitem_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software"
+    )
+endif()

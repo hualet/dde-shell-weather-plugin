@@ -319,8 +319,9 @@ AppletItem {
 
                                     WeatherIcon {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        width: 34
-                                        height: 34
+                                        width: Math.round(root.forecastCellWidth * 0.7)
+                                        height: width
+                                        animated: false
                                         weatherCode: modelData.weatherCode || ""
                                         iconNameOverride: modelData.iconName || ""
                                         iconColor: themeColors.icon
@@ -438,8 +439,7 @@ AppletItem {
             WeatherIcon {
                 id: weatherIcon
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: 1
-                width: Math.min(parent.height - 2, parent.width - 2)
+                width: Math.min(parent.height, parent.width)
                 height: width
                 weatherCode: Applet.weather.weatherCode
                 iconNameOverride: Applet.weather.iconName

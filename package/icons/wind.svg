@@ -1,27 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="56" height="48" version="1.1" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="blur" x="-.24684" y="-.27097" width="1.4937" height="1.6939">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-      <feOffset dx="0" dy="4" result="offsetblur" />
-      <feComponentTransfer>
-        <feFuncA slope="0.05" type="linear" />
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
-  </defs>
-  <g transform="translate(16 -2)" filter="url(#blur)">
-    <g class="am-weather-wind" transform="translate(-16,10)" fill="none" stroke="#57A0EE" stroke-linecap="round"
-      stroke-width="2">
-      <path d="M25.5 5A4 4 0 1 1 29 11H10">
-      </path>
-      <path d="M39.5 11A4 4 0 1 1 43 17H6">
-      </path>
-      <path stroke-width="2" d="M28.5 29A4 4 0 1 0 32 23H15">
-      </path>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800">
+  <g class="layer">
+    <title>Layer 1</title>
+    <g id="e8jzlygv3knn2" transform="matrix(0.9 0 0 1 0 0)">
+      <g id="e8jzlygv3knn3_ts" transform="translate(0 0) scale(0.8 1)">
+        <path d="m410.991425,502.666672l-192,0c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16l192,0c8.832,0 16,7.2 16,16c0,8.8 -7.168,16 -16,16c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16c26.464,0 48,-21.536 48,-48c0,-26.464 -21.536,-48 -48,-48z" fill="#57A0EE" id="e8jzlygv3knn3" />
+      </g>
+      <g id="e8jzlygv3knn4_ts" transform="translate(0 0) scale(0.8 1)">
+        <path d="m218.991425,342.666672l288,0c26.464,0 48,-21.536 48,-48c0,-26.464 -21.536,-48 -48,-48c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16c8.832,0 16,7.2 16,16c0,8.8 -7.168,16 -16,16l-288,0c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16z" fill="#57A0EE" id="e8jzlygv3knn4" />
+      </g>
+      <g id="e8jzlygv3knn5_ts" transform="translate(0 0) scale(0.8 1)">
+        <path d="m634.991425,278.666672c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16c26.464,0 48,21.536 48,48c0,26.464 -21.536,48 -48,48l-416,0c-8.832,0 -16,7.168 -16,16c0,8.832 7.168,16 16,16l416,0c44.096,0 80,-35.872 80,-80c0,-44.128 -35.904,-80 -80,-80z" fill="#57A0EE" id="e8jzlygv3knn5" />
+      </g>
     </g>
   </g>
 </svg>

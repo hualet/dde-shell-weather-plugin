@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "weatherapplet.h"
+#include "animatedsvgitem.h"
 #include "locationsettingsdialog.h"
 #include "pluginfactory.h"
 #include <QDebug>
 #include <QHash>
 #include <QSettings>
 #include <QVariantMap>
+#include <QQmlEngine>
 
 namespace
 {
@@ -30,6 +32,9 @@ WeatherApplet::~WeatherApplet () { qDebug () << "WeatherApplet destroyed"; }
 bool
 WeatherApplet::init ()
 {
+  qmlRegisterType<AnimatedSvgItem>("org.deepin.ds.weather", 1, 0,
+                                    "AnimatedSvgItem");
+
   m_weatherProvider = new WeatherProvider (this);
 
   bool autoLocationEnabled = true;
