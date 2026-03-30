@@ -89,8 +89,11 @@ install(
 )
 
 include(CTest)
+option(DS_WEATHER_ENABLE_QML_TESTS
+       "Build and register QML-dependent WeatherIcon tests"
+       OFF)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND DS_WEATHER_ENABLE_QML_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Qml Test)
 
     add_executable(animatedsvgitem_tests
