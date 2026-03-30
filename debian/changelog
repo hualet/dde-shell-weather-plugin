@@ -1,3 +1,11 @@
+dde-shell-weather-plugin (1.5.2-1) unstable; urgency=medium
+
+  * Replay the main weather icon animation after a successful refresh.
+  * Keep the QML-dependent icon test opt-in for CI and packaging builds.
+  * Bump upstream version to 1.5.2.
+
+ -- HualetWang <mr.asianwang@gmail.com>  Mon, 30 Mar 2026 11:46:55 +0800
+
 dde-shell-weather-plugin (1.5.0-1) unstable; urgency=medium
 
   * Add one-shot animated SVG weather icons to the dock applet.
