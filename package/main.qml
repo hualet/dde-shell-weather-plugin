@@ -433,7 +433,7 @@ AppletItem {
             id: iconSlot
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(24, dockSize - 22)
+            width: Math.max(20, dockSize - 26)
             height: parent.height
 
             WeatherIcon {
