@@ -1,3 +1,12 @@
+dde-shell-weather-plugin (1.5.3-1) unstable; urgency=medium
+
+  * Add local China city database for offline Chinese city search.
+  * Slightly reduce dock weather icon size for better visual balance.
+  * Add CLAUDE.md for AI-assisted development guidance.
+  * Bump upstream version to 1.5.3.
+
+ -- HualetWang <mr.asianwang@gmail.com>  Tue, 31 Mar 2026 12:00:00 +0800
+
 dde-shell-weather-plugin (1.5.2-1) unstable; urgency=medium
 
   * Replay the main weather icon animation after a successful refresh.

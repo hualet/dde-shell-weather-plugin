@@ -3,7 +3,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(dde-shell-weather-plugin VERSION 1.5.2 LANGUAGES CXX)
+project(dde-shell-weather-plugin VERSION 1.5.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
