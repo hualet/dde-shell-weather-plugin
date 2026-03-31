@@ -325,7 +325,7 @@ LocationSettingsDialog::setupUi ()
   m_completerModel = new QStandardItemModel (this);
   m_completer = new QCompleter (m_completerModel, this);
   m_completer->setCaseSensitivity (Qt::CaseInsensitive);
-  m_completer->setCompletionMode (QCompleter::PopupCompletion);
+  m_completer->setCompletionMode (QCompleter::UnfilteredPopupCompletion);
   m_cityEdit->lineEdit ()->setCompleter (m_completer);
 
   connect (m_autoRadio, &QRadioButton::toggled, this,

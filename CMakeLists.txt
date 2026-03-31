@@ -20,6 +20,8 @@ find_package(DDEShell REQUIRED)
 add_library(ds-weather-applet SHARED
     src/animatedsvgitem.h
     src/animatedsvgitem.cpp
+    src/chinacitydb.h
+    src/chinacitydb.cpp
     src/locationsettingsdialog.h
     src/locationsettingsdialog.cpp
     src/weatherapplet.h

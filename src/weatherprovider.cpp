@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "weatherprovider.h"
+#include "chinacitydb.h"
 #include <QDBusConnection>
 #include <QDateTime>
 #include <QDebug>
@@ -732,6 +733,41 @@ WeatherProvider::searchCities (const QString &query)
           emit citySuggestionsChanged ();
         }
       return;
+    }
+
+  // For Chinese-character queries always use the local database: the
+  // Open-Meteo geocoding API returns wrong results for queries such as
+  // "北京" (returns obscure villages instead of the capital).
+  //
+  // For ASCII / pinyin queries in a Chinese locale, try the local database
+  // first (it supports full-pinyin and initials matching, e.g. "beijing"
+  // and "bj" both return 北京市).  If the local database returns no match
+  // the query is forwarded to the remote API so that international cities
+  // (e.g. "london") still work.
+  const bool hasChinese = std::any_of (
+      trimmedQuery.cbegin (), trimmedQuery.cend (), [] (QChar c) {
+        return c.unicode () >= 0x4e00 && c.unicode () <= 0x9fff;
+      });
+  const bool chineseLocale = ChinaCityDb::isChineseLocale (uiLanguageCode ());
+
+  if (hasChinese || chineseLocale)
+    {
+      const QVariantList localSuggestions
+          = ChinaCityDb::search (trimmedQuery, 8);
+      qInfo () << "City search local China DB"
+               << "query=" << trimmedQuery
+               << "hits=" << localSuggestions.size ();
+      if (!localSuggestions.isEmpty () || hasChinese)
+        {
+          m_isSearchingCities = false;
+          if (m_citySuggestions != localSuggestions)
+            {
+              m_citySuggestions = localSuggestions;
+              emit citySuggestionsChanged ();
+            }
+          return;
+        }
+      // No local results and no Chinese characters: fall through to API.
     }
 
   QUrl url ("https://geocoding-api.open-meteo.com/v1/search");
