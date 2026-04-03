@@ -1792,11 +1792,11 @@ WeatherProvider::parseKdeIpLocation (const QByteArray &data, double *latitude,
         }
 
       const QStringView element = reader.name ();
-      if (element == u"Status")
+      if (element == QStringLiteral ("Status"))
         {
           status = reader.readElementText ().trimmed ();
         }
-      else if (element == u"Latitude")
+      else if (element == QStringLiteral ("Latitude"))
         {
           bool ok = false;
           const double value
@@ -1806,7 +1806,7 @@ WeatherProvider::parseKdeIpLocation (const QByteArray &data, double *latitude,
               *latitude = value;
             }
         }
-      else if (element == u"Longitude")
+      else if (element == QStringLiteral ("Longitude"))
         {
           bool ok = false;
           const double value
@@ -1816,15 +1816,15 @@ WeatherProvider::parseKdeIpLocation (const QByteArray &data, double *latitude,
               *longitude = value;
             }
         }
-      else if (element == u"City")
+      else if (element == QStringLiteral ("City"))
         {
           *city = reader.readElementText ().trimmed ();
         }
-      else if (element == u"RegionName")
+      else if (element == QStringLiteral ("RegionName"))
         {
           region = reader.readElementText ().trimmed ();
         }
-      else if (element == u"CountryName")
+      else if (element == QStringLiteral ("CountryName"))
         {
           country = reader.readElementText ().trimmed ();
         }

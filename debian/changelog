@@ -1,3 +1,12 @@
+dde-shell-weather-plugin (1.6.0-1) unstable; urgency=medium
+
+  * Add KDE GeoIP (geoip.kde.org) as primary IP geolocation backend.
+  * Location fallback chain is now: Qt Positioning -> KDE GeoIP -> ip-api -> Beijing.
+  * KDE GeoIP uses HTTPS and MaxMind GeoLite2 data; ip-api retained as fallback.
+  * Fix localised city names when using KDE GeoIP (now resolved via BigDataCloud).
+
+ -- HualetWang <mr.asianwang@gmail.com>  Thu, 03 Apr 2026 14:00:00 +0800
+
 dde-shell-weather-plugin (1.5.3-1) unstable; urgency=medium
 
   * Add local China city database for offline Chinese city search.
