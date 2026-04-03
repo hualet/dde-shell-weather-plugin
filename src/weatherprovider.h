@@ -230,7 +230,8 @@ private:
 #ifdef QT_POSITIONING_LIB
     QtPositioning,
 #endif
-    IpGeolocation,
+    KdeGeoIp,
+    IpApi,
     DefaultLocation,
   };
 
@@ -243,7 +244,7 @@ private:
   void cancelRefreshInProgress (const QString &reason);
   void scheduleRetry (const QString &reason);
   void cancelScheduledRetry ();
-  void fetchLocationFromIp (const QString &reason);
+  void fetchLocationFromIp (LocationBackend backend, const QString &reason);
   void useDefaultLocation (const QString &reason);
   void fetchWeather (double latitude, double longitude);
   void updateLocation (double latitude, double longitude,
@@ -263,6 +264,9 @@ private:
   bool hasManualLocationPreference () const;
   bool parseIpLocation (const QJsonObject &root, double *latitude,
                         double *longitude) const;
+  bool parseKdeIpLocation (const QByteArray &data, double *latitude,
+                           double *longitude, QString *city,
+                           QString *failureReason) const;
   bool parseMetNoWeather (const QJsonObject &root);
   bool parseOpenMeteoWeather (const QJsonObject &root);
   QVariantList parseMetNoHourlyForecast (const QJsonArray &timeseries) const;
@@ -270,6 +274,8 @@ private:
   void finishWeatherRequest ();
   bool fallbackToNextBackend (WeatherBackend backend, double latitude,
                               double longitude, quint64 requestSerial);
+  bool fallbackToNextLocationBackend (LocationBackend backend,
+                                      const QString &reason);
   static QString backendName (WeatherBackend backend);
   static QString locationBackendName (LocationBackend backend);
   QVariantMap buildHourlyForecastEntry (const QDateTime &time,
@@ -333,5 +339,6 @@ private:
   bool m_positionRequestPending;
   bool m_locationLookupInProgress;
   bool m_ipLocationRequestPending;
+  LocationBackend m_activeIpLocationBackend;
   qint64 m_lastRefreshRequestAtMs;
 };

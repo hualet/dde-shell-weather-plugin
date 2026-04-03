@@ -13,6 +13,7 @@
 #include <QLocale>
 #include <QNetworkRequest>
 #include <QUrlQuery>
+#include <QXmlStreamReader>
 #include <cmath>
 
 #ifdef QT_POSITIONING_LIB
@@ -316,6 +317,7 @@ WeatherProvider::WeatherProvider (QObject *parent)
       m_geoclueAgentProcess (nullptr), m_geoclueAgentPrestartDisabled (false),
       m_geoclueAgentStopRequested (false), m_positionRequestPending (false),
       m_locationLookupInProgress (false), m_ipLocationRequestPending (false),
+      m_activeIpLocationBackend (LocationBackend::KdeGeoIp),
       m_lastRefreshRequestAtMs (0)
 {
 #ifdef QT_POSITIONING_LIB
@@ -848,6 +850,7 @@ WeatherProvider::startLocationLookup (LocationLookupPurpose purpose)
   fallbackToIpLocation (QStringLiteral ("qt-source-unavailable"));
 #else
   fetchLocationFromIp (
+      LocationBackend::KdeGeoIp,
       QStringLiteral ("qt-positioning-disabled-at-build-time"));
 #endif
 }
@@ -875,8 +878,7 @@ WeatherProvider::updateLocation (double latitude, double longitude,
           updateAutoLocationCache (latitude, longitude, resolvedCity);
         }
       qInfo () << "Location city updated"
-               << "backend="
-               << locationBackendName (LocationBackend::IpGeolocation)
+               << "backend=" << locationBackendName (m_activeIpLocationBackend)
                << "city=" << m_weatherData.city;
       emit weatherChanged ();
     }
@@ -1082,7 +1084,8 @@ WeatherProvider::requestLocationUpdate ()
 }
 
 void
-WeatherProvider::fetchLocationFromIp (const QString &reason)
+WeatherProvider::fetchLocationFromIp (LocationBackend backend,
+                                      const QString &reason)
 {
   if (m_ipLocationRequestPending)
     {
@@ -1090,24 +1093,48 @@ WeatherProvider::fetchLocationFromIp (const QString &reason)
       return;
     }
 
-  QUrl url ("http://ip-api.com/json/");
+  QUrl url;
   QUrlQuery query;
-  query.addQueryItem ("fields", "status,message,city,regionName,country,lat,"
-                                "lon");
-  query.addQueryItem ("lang", ipApiLanguageCode ());
-  url.setQuery (query);
+
+  switch (backend)
+    {
+    case LocationBackend::KdeGeoIp:
+      url = QUrl (QStringLiteral ("https://geoip.kde.org/v1/ubiquity"));
+      break;
+    case LocationBackend::IpApi:
+      url = QUrl (QStringLiteral ("http://ip-api.com/json/"));
+      query.addQueryItem (
+          QStringLiteral ("fields"),
+          QStringLiteral ("status,message,city,regionName,country,lat,lon"));
+      query.addQueryItem (QStringLiteral ("lang"), ipApiLanguageCode ());
+      url.setQuery (query);
+      break;
+#ifdef QT_POSITIONING_LIB
+    case LocationBackend::QtPositioning:
+#endif
+    case LocationBackend::DefaultLocation:
+      qWarning () << "Unsupported IP location backend request"
+                  << locationBackendName (backend);
+      return;
+    }
+
+  m_activeIpLocationBackend = backend;
 
   qInfo () << "Location lookup start"
-           << "backend="
-           << locationBackendName (LocationBackend::IpGeolocation)
+           << "backend=" << locationBackendName (backend)
            << "reason=" << reason << "url=" << url.toString ();
 
   QNetworkRequest request (url);
   configureJsonRequest (&request);
+  if (backend == LocationBackend::KdeGeoIp)
+    {
+      request.setRawHeader ("Accept", "application/xml,text/xml");
+    }
 
   QNetworkReply *reply = m_networkManager->get (request);
   reply->setProperty ("requestStartedAt", nowMs ());
   reply->setProperty ("reason", reason);
+  reply->setProperty ("locationBackend", static_cast<int> (backend));
   reply->setProperty ("requestSerial",
                       static_cast<qulonglong> (m_locationRequestSerial));
   m_ipLocationReply = reply;
@@ -1546,6 +1573,8 @@ WeatherProvider::onCitySearchReplyFinished (QNetworkReply *reply)
 void
 WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
 {
+  const LocationBackend backend = static_cast<LocationBackend> (
+      reply->property ("locationBackend").toInt ());
   const quint64 requestSerial
       = reply->property ("requestSerial").toULongLong ();
   const qint64 startedAt = reply->property ("requestStartedAt").toLongLong ();
@@ -1562,6 +1591,7 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
     }
 
   qInfo () << "IP geolocation request finished"
+           << "backend=" << locationBackendName (backend)
            << "elapsedMs=" << elapsedMs << "httpStatus=" << httpStatus
            << "networkError=" << reply->error () << "reason=" << reason;
 
@@ -1588,8 +1618,16 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
   if (reply->error () != QNetworkReply::NoError)
     {
       qWarning () << "IP geolocation failed"
+                  << "backend=" << locationBackendName (backend)
                   << "elapsedMs=" << elapsedMs << "reason=" << reason
                   << "message=" << reply->errorString ();
+      if (fallbackToNextLocationBackend (
+              backend,
+              QStringLiteral ("network-error:%1").arg (reply->errorString ())))
+        {
+          return;
+        }
+
       scheduleRetry (
           QStringLiteral ("ip-location-error:%1").arg (reply->errorString ()));
       useDefaultLocation (
@@ -1597,47 +1635,93 @@ WeatherProvider::onIpLocationReplyFinished (QNetworkReply *reply)
       return;
     }
 
-  const QJsonDocument doc = QJsonDocument::fromJson (data);
-  const QJsonObject root = doc.object ();
-  const QString status = root["status"].toString ();
-  if (status == QStringLiteral ("fail"))
-    {
-      const QString message = root["message"].toString ();
-      qWarning () << "IP geolocation request rejected"
-                  << "elapsedMs=" << elapsedMs << "reason=" << reason
-                  << "message=" << message;
-      useDefaultLocation (QStringLiteral ("ip-api-failed:%1").arg (message));
-      return;
-    }
-
   double latitude = 0;
   double longitude = 0;
+  QString city;
 
-  if (!parseIpLocation (root, &latitude, &longitude))
+  if (backend == LocationBackend::KdeGeoIp)
     {
-      qWarning () << "IP geolocation payload missing usable coordinates"
-                  << "elapsedMs=" << elapsedMs << "reason=" << reason
-                  << "status=" << status;
-      useDefaultLocation (QStringLiteral ("ip-invalid-payload"));
-      return;
+      QString failureReason;
+      if (!parseKdeIpLocation (data, &latitude, &longitude, &city,
+                               &failureReason))
+        {
+          qWarning () << "IP geolocation payload missing usable coordinates"
+                      << "backend=" << locationBackendName (backend)
+                      << "elapsedMs=" << elapsedMs << "reason=" << reason
+                      << "failureReason=" << failureReason;
+          if (fallbackToNextLocationBackend (
+                  backend,
+                  QStringLiteral ("invalid-payload:%1").arg (failureReason)))
+            {
+              return;
+            }
+
+          useDefaultLocation (
+              QStringLiteral ("ip-invalid-payload:%1").arg (failureReason));
+          return;
+        }
+    }
+  else
+    {
+      const QJsonDocument doc = QJsonDocument::fromJson (data);
+      const QJsonObject root = doc.object ();
+      const QString status = root["status"].toString ();
+      if (status == QStringLiteral ("fail"))
+        {
+          const QString message = root["message"].toString ();
+          qWarning () << "IP geolocation request rejected"
+                      << "backend=" << locationBackendName (backend)
+                      << "elapsedMs=" << elapsedMs << "reason=" << reason
+                      << "message=" << message;
+          if (fallbackToNextLocationBackend (
+                  backend,
+                  QStringLiteral ("request-rejected:%1").arg (message)))
+            {
+              return;
+            }
+
+          useDefaultLocation (
+              QStringLiteral ("ip-api-failed:%1").arg (message));
+          return;
+        }
+
+      if (!parseIpLocation (root, &latitude, &longitude))
+        {
+          qWarning () << "IP geolocation payload missing usable coordinates"
+                      << "backend=" << locationBackendName (backend)
+                      << "elapsedMs=" << elapsedMs << "reason=" << reason
+                      << "status=" << status;
+          if (fallbackToNextLocationBackend (
+                  backend, QStringLiteral ("invalid-payload")))
+            {
+              return;
+            }
+
+          useDefaultLocation (QStringLiteral ("ip-invalid-payload"));
+          return;
+        }
+
+      city = root["city"].toString ().trimmed ();
+      if (city.isEmpty ())
+        {
+          city = root["regionName"].toString ().trimmed ();
+        }
+      if (city.isEmpty ())
+        {
+          city = root["country"].toString ().trimmed ();
+        }
     }
 
-  QString city = root["city"].toString ().trimmed ();
-  if (city.isEmpty ())
-    {
-      city = root["regionName"].toString ().trimmed ();
-    }
-  if (city.isEmpty ())
-    {
-      city = root["country"].toString ().trimmed ();
-    }
-
+  // KDE GeoIP returns city names in English only; pass empty city so that
+  // fetchCityName (BigDataCloud) runs and provides a localised name instead.
+  const QString resolvedCity
+      = backend == LocationBackend::KdeGeoIp ? QString{} : city;
   qInfo () << "Location lookup success"
-           << "backend="
-           << locationBackendName (LocationBackend::IpGeolocation)
+           << "backend=" << locationBackendName (backend)
            << "latitude=" << latitude << "longitude=" << longitude
-           << "city=" << city << "elapsedMs=" << elapsedMs;
-  handleResolvedLocation (latitude, longitude, city);
+           << "city=" << city << "resolvedCity=" << resolvedCity
+           << "elapsedMs=" << elapsedMs;
+  handleResolvedLocation (latitude, longitude, resolvedCity);
 }
 
 bool
@@ -1671,6 +1755,117 @@ WeatherProvider::parseIpLocation (const QJsonObject &root, double *latitude,
       || *longitude > 180.0)
     {
       return false;
+    }
+
+  return true;
+}
+
+bool
+WeatherProvider::parseKdeIpLocation (const QByteArray &data, double *latitude,
+                                     double *longitude, QString *city,
+                                     QString *failureReason) const
+{
+  if (!latitude || !longitude || !city)
+    {
+      if (failureReason)
+        {
+          *failureReason = QStringLiteral ("missing-output-arguments");
+        }
+      return false;
+    }
+
+  *latitude = 0;
+  *longitude = 0;
+  city->clear ();
+
+  QXmlStreamReader reader (data);
+  QString status;
+  QString region;
+  QString country;
+
+  while (!reader.atEnd ())
+    {
+      reader.readNext ();
+      if (!reader.isStartElement ())
+        {
+          continue;
+        }
+
+      const QStringView element = reader.name ();
+      if (element == u"Status")
+        {
+          status = reader.readElementText ().trimmed ();
+        }
+      else if (element == u"Latitude")
+        {
+          bool ok = false;
+          const double value
+              = reader.readElementText ().trimmed ().toDouble (&ok);
+          if (ok)
+            {
+              *latitude = value;
+            }
+        }
+      else if (element == u"Longitude")
+        {
+          bool ok = false;
+          const double value
+              = reader.readElementText ().trimmed ().toDouble (&ok);
+          if (ok)
+            {
+              *longitude = value;
+            }
+        }
+      else if (element == u"City")
+        {
+          *city = reader.readElementText ().trimmed ();
+        }
+      else if (element == u"RegionName")
+        {
+          region = reader.readElementText ().trimmed ();
+        }
+      else if (element == u"CountryName")
+        {
+          country = reader.readElementText ().trimmed ();
+        }
+    }
+
+  if (reader.hasError ())
+    {
+      if (failureReason)
+        {
+          *failureReason = reader.errorString ();
+        }
+      return false;
+    }
+
+  if (!status.isEmpty () && status != QStringLiteral ("OK"))
+    {
+      if (failureReason)
+        {
+          *failureReason = QStringLiteral ("status:%1").arg (status);
+        }
+      return false;
+    }
+
+  if (!std::isfinite (*latitude) || !std::isfinite (*longitude)
+      || *latitude < -90.0 || *latitude > 90.0 || *longitude < -180.0
+      || *longitude > 180.0)
+    {
+      if (failureReason)
+        {
+          *failureReason = QStringLiteral ("invalid-coordinates");
+        }
+      return false;
+    }
+
+  if (city->isEmpty ())
+    {
+      *city = region;
+    }
+  if (city->isEmpty ())
+    {
+      *city = country;
     }
 
   return true;
@@ -2188,13 +2383,32 @@ WeatherProvider::locationBackendName (LocationBackend backend)
     case LocationBackend::QtPositioning:
       return QStringLiteral ("Qt Positioning");
 #endif
-    case LocationBackend::IpGeolocation:
-      return QStringLiteral ("IP geolocation");
+    case LocationBackend::KdeGeoIp:
+      return QStringLiteral ("KDE GeoIP");
+    case LocationBackend::IpApi:
+      return QStringLiteral ("ip-api.com");
     case LocationBackend::DefaultLocation:
       return QStringLiteral ("Default location");
     }
 
   return QStringLiteral ("Unknown");
+}
+
+bool
+WeatherProvider::fallbackToNextLocationBackend (LocationBackend backend,
+                                                const QString &reason)
+{
+  if (backend == LocationBackend::KdeGeoIp)
+    {
+      qWarning () << "Location backend fallback"
+                  << "from=" << locationBackendName (backend)
+                  << "to=" << locationBackendName (LocationBackend::IpApi)
+                  << "reason=" << reason;
+      fetchLocationFromIp (LocationBackend::IpApi, reason);
+      return true;
+    }
+
+  return false;
 }
 
 QString
@@ -2426,9 +2640,9 @@ WeatherProvider::fallbackToIpLocation (const QString &reason)
   qWarning () << "Location backend fallback"
               << "from="
               << locationBackendName (LocationBackend::QtPositioning)
-              << "to=" << locationBackendName (LocationBackend::IpGeolocation)
+              << "to=" << locationBackendName (LocationBackend::KdeGeoIp)
               << "reason=" << reason;
-  fetchLocationFromIp (reason);
+  fetchLocationFromIp (LocationBackend::KdeGeoIp, reason);
 }
 
 void
@@ -2577,8 +2791,8 @@ WeatherProvider::useDefaultLocation (const QString &reason)
     }
 
   qWarning () << "Location backend fallback"
-              << "from="
-              << locationBackendName (LocationBackend::IpGeolocation) << "to="
+              << "from=" << locationBackendName (m_activeIpLocationBackend)
+              << "to="
               << locationBackendName (LocationBackend::DefaultLocation)
               << "reason=" << reason << "latitude=" << kDefaultLatitude
               << "longitude=" << kDefaultLongitude;
