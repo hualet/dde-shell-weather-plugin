@@ -72,3 +72,6 @@ Thumbs.db
 *.changes
 
 .claude/
+
+# python 
+__pycache__/
