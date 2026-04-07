@@ -276,6 +276,9 @@ private:
                               double longitude, quint64 requestSerial);
   bool fallbackToNextLocationBackend (LocationBackend backend,
                                       const QString &reason);
+  void clearErrorMessage ();
+  void setErrorMessage (const QString &message);
+  QString userVisibleWeatherErrorMessage (QNetworkReply *reply) const;
   static QString backendName (WeatherBackend backend);
   static QString locationBackendName (LocationBackend backend);
   QVariantMap buildHourlyForecastEntry (const QDateTime &time,

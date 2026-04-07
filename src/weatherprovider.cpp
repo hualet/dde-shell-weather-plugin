@@ -1155,12 +1155,7 @@ WeatherProvider::fetchWeather (double latitude, double longitude)
       emit loadingChanged ();
     }
 
-  if (m_hasError)
-    {
-      m_hasError = false;
-      m_errorMessage.clear ();
-      emit errorChanged ();
-    }
+  clearErrorMessage ();
 
   fetchWeatherFromBackend (WeatherBackend::MetNo, latitude, longitude,
                            requestSerial);
@@ -1328,9 +1323,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
         }
 
       finishWeatherRequest ();
-      m_hasError = true;
-      m_errorMessage = reply->errorString ();
-      emit errorChanged ();
+      setErrorMessage (userVisibleWeatherErrorMessage (reply));
       scheduleRetry (
           QStringLiteral ("weather-error:%1").arg (reply->errorString ()));
       return;
@@ -1369,9 +1362,7 @@ WeatherProvider::onWeatherReplyFinished (QNetworkReply *reply)
         }
 
       finishWeatherRequest ();
-      m_hasError = true;
-      m_errorMessage = tr ("Unexpected weather data response");
-      emit errorChanged ();
+      setErrorMessage (tr ("Weather unavailable"));
       return;
     }
 
@@ -2341,6 +2332,105 @@ WeatherProvider::finishWeatherRequest ()
     }
 }
 
+void
+WeatherProvider::clearErrorMessage ()
+{
+  if (!m_hasError && m_errorMessage.isEmpty ())
+    {
+      return;
+    }
+
+  m_hasError = false;
+  m_errorMessage.clear ();
+  emit errorChanged ();
+}
+
+void
+WeatherProvider::setErrorMessage (const QString &message)
+{
+  const QString normalizedMessage = message.trimmed ();
+  if (normalizedMessage.isEmpty ())
+    {
+      clearErrorMessage ();
+      return;
+    }
+
+  if (m_hasError && m_errorMessage == normalizedMessage)
+    {
+      return;
+    }
+
+  m_hasError = true;
+  m_errorMessage = normalizedMessage;
+  emit errorChanged ();
+}
+
+QString
+WeatherProvider::userVisibleWeatherErrorMessage (QNetworkReply *reply) const
+{
+  if (!reply)
+    {
+      return tr ("Weather unavailable");
+    }
+
+  const int httpStatus
+      = reply->attribute (QNetworkRequest::HttpStatusCodeAttribute).toInt ();
+
+  if (httpStatus == 408 || httpStatus == 429 || httpStatus >= 500)
+    {
+      return tr ("Weather unavailable");
+    }
+
+  switch (reply->error ())
+    {
+    case QNetworkReply::NoError:
+      break;
+    case QNetworkReply::ConnectionRefusedError:
+    case QNetworkReply::RemoteHostClosedError:
+    case QNetworkReply::HostNotFoundError:
+    case QNetworkReply::TimeoutError:
+    case QNetworkReply::TemporaryNetworkFailureError:
+    case QNetworkReply::NetworkSessionFailedError:
+    case QNetworkReply::ProxyConnectionRefusedError:
+    case QNetworkReply::ProxyConnectionClosedError:
+    case QNetworkReply::ProxyNotFoundError:
+    case QNetworkReply::ProxyTimeoutError:
+    case QNetworkReply::UnknownNetworkError:
+      return tr ("Weather unavailable");
+    case QNetworkReply::SslHandshakeFailedError:
+    case QNetworkReply::TooManyRedirectsError:
+    case QNetworkReply::InsecureRedirectError:
+    case QNetworkReply::ContentAccessDenied:
+    case QNetworkReply::ContentOperationNotPermittedError:
+    case QNetworkReply::ContentNotFoundError:
+    case QNetworkReply::AuthenticationRequiredError:
+    case QNetworkReply::ContentReSendError:
+    case QNetworkReply::ContentConflictError:
+    case QNetworkReply::ContentGoneError:
+    case QNetworkReply::UnknownContentError:
+    case QNetworkReply::ProtocolUnknownError:
+    case QNetworkReply::ProtocolInvalidOperationError:
+    case QNetworkReply::ProtocolFailure:
+    case QNetworkReply::ProxyAuthenticationRequiredError:
+    case QNetworkReply::UnknownProxyError:
+    case QNetworkReply::BackgroundRequestNotAllowedError:
+    case QNetworkReply::InternalServerError:
+    case QNetworkReply::OperationNotImplementedError:
+    case QNetworkReply::ServiceUnavailableError:
+    case QNetworkReply::UnknownServerError:
+      return tr ("Weather unavailable");
+    case QNetworkReply::OperationCanceledError:
+      return tr ("Weather unavailable");
+    }
+
+  if (httpStatus >= 400)
+    {
+      return tr ("Weather unavailable");
+    }
+
+  return tr ("Weather unavailable");
+}
+
 bool
 WeatherProvider::fallbackToNextBackend (WeatherBackend backend,
                                         double latitude, double longitude,
@@ -2786,7 +2876,7 @@ WeatherProvider::useDefaultLocation (const QString &reason)
     {
       qWarning () << "Location preview failed"
                   << "reason=" << reason;
-      emit locationPreviewFailed (tr ("Failed to get location"));
+      emit locationPreviewFailed (tr ("Location unavailable"));
       return;
     }
 
@@ -2797,9 +2887,7 @@ WeatherProvider::useDefaultLocation (const QString &reason)
               << "reason=" << reason << "latitude=" << kDefaultLatitude
               << "longitude=" << kDefaultLongitude;
 
-  m_hasError = true;
-  m_errorMessage = tr ("Failed to get location");
-  emit errorChanged ();
+  setErrorMessage (tr ("Location unavailable"));
 
   setLocation (kDefaultLatitude, kDefaultLongitude);
 }

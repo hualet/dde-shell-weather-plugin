@@ -101,6 +101,20 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../src/weatherprovider.cpp" line="1371"/>
+        <location filename="../src/weatherprovider.cpp" line="2372"/>
+        <source>Weather unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+
+    <message>
+        <location filename="../src/weatherprovider.cpp" line="1371"/>
+        <location filename="../src/weatherprovider.cpp" line="2372"/>
+        <source>Location unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+
+    <message>
         <location filename="../src/weatherprovider.cpp" line="684"/>
         <source>Location lookup already in progress</source>
         <translation type="unfinished"></translation>

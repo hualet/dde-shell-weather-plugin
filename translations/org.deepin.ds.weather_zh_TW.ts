@@ -101,6 +101,20 @@
         <translation>Open-Meteo</translation>
     </message>
     <message>
+        <location filename="../src/weatherprovider.cpp" line="1371"/>
+        <location filename="../src/weatherprovider.cpp" line="2372"/>
+        <source>Weather unavailable</source>
+        <translation>天氣不可用</translation>
+    </message>
+
+    <message>
+        <location filename="../src/weatherprovider.cpp" line="1371"/>
+        <location filename="../src/weatherprovider.cpp" line="2372"/>
+        <source>Location unavailable</source>
+        <translation>位置不可用</translation>
+    </message>
+
+    <message>
         <location filename="../src/weatherprovider.cpp" line="684"/>
         <source>Location lookup already in progress</source>
         <translation>正在定位，請稍候</translation>

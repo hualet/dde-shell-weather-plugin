@@ -19,6 +19,7 @@ AppletItem {
     
     property int dockSize: Panel.rootObject.dockSize || 48
     readonly property int horizontalAppletMaxWidth: 180
+    readonly property int horizontalErrorMinWidth: 96
     readonly property var hourlyForecastEntries: Applet.weather.hourlyForecast || []
     readonly property int forecastCellWidth: 60
     readonly property int forecastCellSpacing: 14
@@ -73,8 +74,10 @@ AppletItem {
         return maxTemperature
     }
     
-    implicitWidth: useColumnLayout ? dockSize : Math.min(horizontalAppletMaxWidth,
-                                                         weatherSummary.implicitWidth)
+    implicitWidth: useColumnLayout ? dockSize : (Applet.weather && Applet.weather.hasError
+                                                  ? horizontalErrorMinWidth
+                                                  : Math.min(horizontalAppletMaxWidth,
+                                                             weatherSummary.implicitWidth))
     implicitHeight: dockSize
 
     function forecastCenterX(index) {
@@ -397,15 +400,33 @@ AppletItem {
     }
     
     // Error message
-    Text {
+    Control {
+        id: errorBanner
         anchors.centerIn: parent
-        text: Applet.weather.hasError ? Applet.weather.errorMessage : ""
-        color: themeColors.primaryText
-        font.pixelSize: 10
         visible: Applet.weather.hasError
-        horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.WordWrap
-        width: parent.width - 10
+        width: Math.max(24, parent.width - 8)
+        leftPadding: 8
+        rightPadding: 8
+        topPadding: 4
+        bottomPadding: 4
+
+        background: Rectangle {
+            radius: 8
+            color: themeColors.errorBackground
+            border.width: 1
+            border.color: themeColors.errorBorder
+        }
+
+        contentItem: Text {
+            text: Applet.weather.hasError ? Applet.weather.errorMessage : ""
+            color: themeColors.primaryText
+            font.pixelSize: root.useColumnLayout ? 8 : 10
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+        }
     }
     
     // Main content: use explicit anchors so the icon/text gap stays stable
@@ -525,6 +546,8 @@ AppletItem {
         readonly property color primaryText: Qt.rgba(text.r, text.g, text.b, 0.82)
         readonly property color secondaryText: Qt.rgba(text.r, text.g, text.b, 0.68)
         readonly property color icon: text
+        readonly property color errorBackground: Qt.rgba(text.r, text.g, text.b, 0.10)
+        readonly property color errorBorder: Qt.rgba(text.r, text.g, text.b, 0.14)
         readonly property color chartLine: root.ColorSelector.chartLinePalette
         readonly property color chartPoint: root.ColorSelector.chartPointPalette
     }
