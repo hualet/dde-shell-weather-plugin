@@ -343,5 +343,6 @@ private:
   bool m_locationLookupInProgress;
   bool m_ipLocationRequestPending;
   LocationBackend m_activeIpLocationBackend;
+  bool m_useQtPositioningLocationBackend;
   qint64 m_lastRefreshRequestAtMs;
 };

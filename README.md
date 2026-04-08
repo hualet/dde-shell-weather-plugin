@@ -31,9 +31,9 @@
 
 ### 可选依赖
 
-- Qt6 Positioning - 用于自动定位功能
-- libqt6positioning6-plugins - Qt Positioning 运行时插件，自动定位依赖它加载 GeoClue 后端
-- geoclue-2-demo - 提供 GeoClue agent，插件会在正式请求位置前临时拉起它完成授权
+- Qt6 Positioning - 可选，用于显式启用更精确的系统定位
+- libqt6positioning6-plugins - 可选，启用 Qt Positioning/GeoClue 时需要
+- geoclue-2-demo - 可选，启用 GeoClue agent 预启动时需要
 
 ## 构建和安装
 
@@ -83,15 +83,21 @@ dpkg-buildpackage -us -uc -b
 
 ## 自动定位说明
 
-插件在调用 `QGeoPositionInfoSource::requestUpdate()` 之前，会先启动系统自带的 GeoClue agent：
+插件默认跳过 GeoClue / Qt Positioning，直接使用基于 IP 的粗定位，避免首次定位时依赖系统定位服务。
+如果 IP 定位失败，才会继续回退到默认城市。
+
+如果你确实需要显式启用 Qt Positioning / GeoClue，可以在启动前设置环境变量：
+
+```bash
+export DS_WEATHER_LOCATION_BACKEND=qt
+```
+
+启用后，插件会在调用 `QGeoPositionInfoSource::requestUpdate()` 之前尝试启动系统自带的 GeoClue agent：
 
 - `/usr/libexec/geoclue-2.0/demos/agent`
 
 当位置获取成功或失败时，插件会立即退出这个 agent 进程，不再依赖 `/etc/geoclue/conf.d/*.conf`
-里的静态放行配置。
-
-如果仍出现 `UpdateTimeoutError`，说明系统定位源本身没有在超时时间内返回结果，而不是 agent
-启动时机的问题。此时插件会自动回退到基于 IP 的粗定位；如果 IP 定位也失败，才会回退到默认城市。
+里的静态放行配置。若 Qt Positioning / GeoClue 不可用，插件仍会自动回退到基于 IP 的粗定位。
 
 ## 项目结构
 

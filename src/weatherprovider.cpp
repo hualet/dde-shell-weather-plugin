@@ -235,6 +235,18 @@ ipApiLanguageCode ()
 }
 
 bool
+useQtPositioningLocationBackendByDefault ()
+{
+  const QString backend = qEnvironmentVariable ("DS_WEATHER_LOCATION_BACKEND")
+                              .trimmed ()
+                              .toLower ();
+
+  return backend == QStringLiteral ("qt")
+         || backend == QStringLiteral ("qt-positioning")
+         || backend == QStringLiteral ("geoclue");
+}
+
+bool
 jsonValueToDouble (const QJsonValue &value, double *result)
 {
   if (!result)
@@ -318,20 +330,25 @@ WeatherProvider::WeatherProvider (QObject *parent)
       m_geoclueAgentStopRequested (false), m_positionRequestPending (false),
       m_locationLookupInProgress (false), m_ipLocationRequestPending (false),
       m_activeIpLocationBackend (LocationBackend::KdeGeoIp),
+      m_useQtPositioningLocationBackend (
+          useQtPositioningLocationBackendByDefault ()),
       m_lastRefreshRequestAtMs (0)
 {
 #ifdef QT_POSITIONING_LIB
-  m_geoclueAgentProcess = new QProcess (this);
-  m_geoclueAgentProcess->setProcessChannelMode (QProcess::MergedChannels);
-  connect (m_geoclueAgentProcess, &QProcess::readyReadStandardOutput, this,
-           [this] () { logGeoclueAgentOutput (m_geoclueAgentProcess); });
-  connect (m_geoclueAgentProcess, &QProcess::started, this,
-           &WeatherProvider::onGeoclueAgentStarted);
-  connect (m_geoclueAgentProcess, &QProcess::errorOccurred, this,
-           &WeatherProvider::onGeoclueAgentErrorOccurred);
-  connect (m_geoclueAgentProcess,
-           qOverload<int, QProcess::ExitStatus> (&QProcess::finished), this,
-           &WeatherProvider::onGeoclueAgentFinished);
+  if (m_useQtPositioningLocationBackend)
+    {
+      m_geoclueAgentProcess = new QProcess (this);
+      m_geoclueAgentProcess->setProcessChannelMode (QProcess::MergedChannels);
+      connect (m_geoclueAgentProcess, &QProcess::readyReadStandardOutput, this,
+               [this] () { logGeoclueAgentOutput (m_geoclueAgentProcess); });
+      connect (m_geoclueAgentProcess, &QProcess::started, this,
+               &WeatherProvider::onGeoclueAgentStarted);
+      connect (m_geoclueAgentProcess, &QProcess::errorOccurred, this,
+               &WeatherProvider::onGeoclueAgentErrorOccurred);
+      connect (m_geoclueAgentProcess,
+               qOverload<int, QProcess::ExitStatus> (&QProcess::finished),
+               this, &WeatherProvider::onGeoclueAgentFinished);
+    }
 #endif
 
   // Setup refresh timer (update every 30 minutes)
@@ -528,6 +545,14 @@ void
 WeatherProvider::initLocationSource ()
 {
 #ifdef QT_POSITIONING_LIB
+  if (!m_useQtPositioningLocationBackend)
+    {
+      qInfo () << "Location backend initialized"
+               << "backend=" << locationBackendName (LocationBackend::KdeGeoIp)
+               << "mode=default-ip";
+      return;
+    }
+
   m_positionSource = QGeoPositionInfoSource::createDefaultSource (this);
 
   if (m_positionSource)
@@ -535,7 +560,8 @@ WeatherProvider::initLocationSource ()
       qInfo () << "Location backend initialized"
                << "backend="
                << locationBackendName (LocationBackend::QtPositioning)
-               << "source=" << m_positionSource->sourceName ();
+               << "source=" << m_positionSource->sourceName ()
+               << "mode=opt-in";
       connect (m_positionSource, &QGeoPositionInfoSource::positionUpdated,
                this, &WeatherProvider::onPositionUpdated);
       connect (m_positionSource, &QGeoPositionInfoSource::errorOccurred, this,
@@ -543,8 +569,9 @@ WeatherProvider::initLocationSource ()
     }
   else
     {
-      qWarning ()
-          << "Qt Positioning default source unavailable during initialization";
+      qWarning () << "Qt Positioning default source unavailable during "
+                     "initialization, using IP location fallback";
+      m_useQtPositioningLocationBackend = false;
     }
 #else
   qInfo () << "Qt Positioning not available at build time, using IP location "
@@ -829,7 +856,7 @@ WeatherProvider::startLocationLookup (LocationLookupPurpose purpose)
   m_locationLookupInProgress = true;
 
 #ifdef QT_POSITIONING_LIB
-  if (m_positionSource)
+  if (m_useQtPositioningLocationBackend && m_positionSource)
     {
       if (m_positionRequestPending)
         {
@@ -847,7 +874,11 @@ WeatherProvider::startLocationLookup (LocationLookupPurpose purpose)
       return;
     }
 
-  fallbackToIpLocation (QStringLiteral ("qt-source-unavailable"));
+  fetchLocationFromIp (
+      LocationBackend::KdeGeoIp,
+      m_useQtPositioningLocationBackend
+          ? QStringLiteral ("qt-source-unavailable")
+          : QStringLiteral ("qt-positioning-disabled-by-default"));
 #else
   fetchLocationFromIp (
       LocationBackend::KdeGeoIp,
