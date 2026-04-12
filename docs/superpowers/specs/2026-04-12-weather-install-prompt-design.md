@@ -11,6 +11,7 @@ If there is no active graphical session, the package must skip the prompt silent
 - Explain to users why the plugin may not appear immediately after installation.
 - Give users a one-click DTK-native way to restart the taskbar.
 - Cover both first-time installation and package upgrades with user-friendly wording.
+- Ensure all new user-visible install-time strings are internationalized.
 - Never block or fail package installation because of dialog or session-launch issues.
 
 ## Non-Goals
@@ -54,6 +55,13 @@ Buttons:
 - Choosing `稍后再说` closes the dialog and does nothing else.
 - Choosing `立即重启` launches `systemctl --user restart dde-shell@DDE.service` from the user session and then exits.
 - If restart command launch fails, the helper may log diagnostics but must not show follow-up error dialogs.
+
+### Internationalization
+
+- All new helper strings must be translatable and must not be hardcoded as Chinese-only runtime text.
+- The helper must use the project's existing Qt translation flow so that title text, body text, and button labels can be localized consistently with the rest of the plugin.
+- `postinst` should pass only mode information such as `install` or `upgrade`; localized user-visible wording belongs in the helper, not in the shell script.
+- The initial Chinese wording in this document is the source intent, not an instruction to bypass translation support.
 
 ## Packaging Design
 
@@ -120,6 +128,7 @@ The helper is responsible for:
 - parsing `--mode=install|upgrade`
 - creating a DTK application object
 - showing a DTK-styled modal confirmation dialog with the correct localized text
+- sourcing all user-visible text through Qt translation APIs
 - starting `systemctl --user restart dde-shell@DDE.service` only after explicit confirmation
 - exiting immediately after user dismissal or command start
 
@@ -168,6 +177,7 @@ Where direct integration testing is hard, keep the shell logic factored so core 
 Validate that the helper:
 - accepts only supported mode values
 - selects the correct strings for install and upgrade
+- resolves all user-visible strings through the translation path used by the executable
 - triggers `systemctl --user restart dde-shell@DDE.service` only on positive confirmation
 
 ### Manual Verification
