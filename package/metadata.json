@@ -1,6 +1,6 @@
 {
   "Plugin": {
-    "Version": "1.6.1",
+    "Version": "1.6.2",
     "Id": "org.deepin.ds.weather",
     "Url": "main.qml",
     "Parent": "org.deepin.ds.dock",
