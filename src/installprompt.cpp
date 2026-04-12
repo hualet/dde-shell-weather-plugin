@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QDialog>
+#include <QLabel>
 #include <QProcess>
 
 #include <DDialog>
@@ -66,10 +67,14 @@ InstallPrompt::run (Mode mode, QWidget *parent)
   bool restartRequested = false;
 
   DDialog dialog (parent);
-  dialog.setTitle (text.title);
-  dialog.setMessage (text.body);
-  dialog.setWordWrapMessage (true);
+  dialog.setWindowTitle (text.title);
   dialog.setOnButtonClickedClose (false);
+  dialog.setContentLayoutContentsMargins (QMargins (24, 8, 24, 24));
+
+  QLabel *bodyLabel = new QLabel (text.body, &dialog);
+  bodyLabel->setWordWrap (true);
+  bodyLabel->setTextFormat (Qt::PlainText);
+  dialog.addContent (bodyLabel);
 
   const int rejectButtonIndex
       = dialog.addButton (text.rejectLabel, false, DDialog::ButtonNormal);
