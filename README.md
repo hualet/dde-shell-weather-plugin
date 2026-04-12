@@ -1,5 +1,7 @@
 # DDE Shell Weather Plugin
 
+[![Build](https://github.com/hualet/dde-shell-weather-plugin/actions/workflows/build.yml/badge.svg)](https://github.com/hualet/dde-shell-weather-plugin/actions/workflows/build.yml)[![Build Debian Package](https://github.com/hualet/dde-shell-weather-plugin/actions/workflows/deb.yml/badge.svg)](https://github.com/hualet/dde-shell-weather-plugin/actions/workflows/deb.yml)
+
 一个为 DDE Shell (Deepin Desktop Environment) 开发的天气任务栏插件。
 
 ![plugin showcase](./docs/res/showcase.png)
