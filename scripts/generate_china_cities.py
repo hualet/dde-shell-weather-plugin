@@ -10,9 +10,10 @@
 #   .venv/bin/python3 scripts/generate_china_cities.py
 #
 # The script downloads CN.zip from geonames.org (if not already present),
-# extracts city entries at prefecture level and above (PPLA, PPLA2, PPLA3),
-# generates Simplified Chinese names, pinyin, and three-level admin hierarchy
-# (county → prefecture city → province), then writes src/chinacitydb.cpp.
+# extracts major Chinese administrative divisions and administrative seats
+# (PPLC, PPLA, PPLA2, PPLA3, PPLG, ADM3), generates Simplified Chinese names,
+# pinyin, and three-level admin hierarchy (county/district → prefecture city
+# → province), then writes src/chinacitydb.cpp.
 
 import io
 import pathlib
@@ -111,19 +112,25 @@ def load_admin_names():
 
 def load_cities(province_names, prefecture_names):
     cities = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str, str]] = set()
+    allowed_place_codes = {"PPLC", "PPLA", "PPLA2", "PPLA3", "PPLG"}
+    allowed_admin_codes = {"ADM3", "ADM3H"}
     with open(CACHE_FILE, encoding="utf-8") as f:
         for line in f:
             parts = line.rstrip("\n").split("\t")
-            if len(parts) < 15 or parts[8] != "CN" or parts[6] != "P":
+            if len(parts) < 15 or parts[8] != "CN":
                 continue
+            feature_class = parts[6]
             fc = parts[7]
-            if fc not in ("PPLC", "PPLA", "PPLA2", "PPLA3", "PPLG"):
+            if feature_class == "P":
+                if fc not in allowed_place_codes:
+                    continue
+            elif feature_class == "A":
+                if fc not in allowed_admin_codes:
+                    continue
+            else:
                 continue
             name = get_chinese_name(parts[3])
-            if not name or name in seen:
-                continue
-            seen.add(name)
             lat = float(parts[4]) if parts[4] else 0.0
             lon = float(parts[5]) if parts[5] else 0.0
             a1, a2 = parts[10], parts[11]
@@ -132,6 +139,10 @@ def load_cities(province_names, prefecture_names):
             prefecture = prefecture_names.get((a1, a2), "")
             if prefecture == name:
                 prefecture = ""
+            dedupe_key = (name, prefecture, province)
+            if not name or dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
             pinyin_full = "".join(lazy_pinyin(name))
             pinyin_initials = "".join(lazy_pinyin(name, style=Style.FIRST_LETTER))
             cities.append({
@@ -145,7 +156,7 @@ def load_cities(province_names, prefecture_names):
                 "population": population,
                 "feature_code": fc,
             })
-    order = {"PPLC": 0, "PPLA": 1, "PPLG": 2, "PPLA2": 3, "PPLA3": 4}
+    order = {"PPLC": 0, "PPLA": 1, "PPLG": 2, "PPLA2": 3, "PPLA3": 4, "ADM3": 5, "ADM3H": 6}
     cities.sort(key=lambda c: (order.get(c["feature_code"], 9), -c["population"]))
     return cities
 

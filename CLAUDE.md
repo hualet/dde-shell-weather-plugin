@@ -45,6 +45,7 @@ package/                          # QML UI + plugin metadata
   icons/                          # ~55 animated SVG (SMIL) weather icons
 tests/
   animatedsvgitem_test.cpp        # Qt Test: 4 test cases for AnimatedSvgItem
+  chinacitydb_test.cpp            # Qt Test: district/county coverage for ChinaCityDb search
 scripts/
   generate_china_cities.py        # Regenerates src/chinacitydb.cpp from GeoNames data
 translations/                     # 23 locale .ts files
@@ -125,11 +126,30 @@ make -j$(nproc)
 QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software ctest --output-on-failure
 ```
 
+ChinaCityDb coverage can be verified without enabling the QML-dependent tests:
+```bash
+cmake .. -DBUILD_TESTING=ON
+cmake --build . --target chinacitydb_tests -j$(nproc)
+ctest -R chinacitydb_tests --output-on-failure
+```
+
 ## Code Generation
 
-`src/chinacitydb.cpp` is auto-generated - do NOT edit manually. To regenerate:
+`src/chinacitydb.cpp` is auto-generated - do NOT edit manually. Update the generator and regenerate instead.
+
+Coverage notes:
+- Chinese manual-location queries prefer local `ChinaCityDb`; Open-Meteo geocoding is unreliable for many Chinese place names
+- The generator includes major Chinese administrative divisions and administrative seats, including district/county-level `ADM3` / `ADM3H` entries
+- District/county dedupe must stay keyed by `name + prefecture + province` so homonymous entries like `长安区` and `市中区` are preserved
+- `scripts/CN.txt` is a GeoNames cache used for regeneration and normally should not be committed unless intentionally vendored
+
+Regenerate and verify with:
 ```bash
 uv venv .venv
 uv pip install --python .venv pypinyin opencc-python-reimplemented
 .venv/bin/python3 scripts/generate_china_cities.py
+
+cmake .. -DBUILD_TESTING=ON
+cmake --build . --target chinacitydb_tests -j$(nproc)
+ctest -R chinacitydb_tests --output-on-failure
 ```

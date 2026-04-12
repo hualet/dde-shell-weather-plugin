@@ -126,3 +126,19 @@ if(BUILD_TESTING AND DS_WEATHER_ENABLE_QML_TESTS)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software"
     )
 endif()
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+
+    add_executable(chinacitydb_tests
+        tests/chinacitydb_test.cpp
+        src/chinacitydb.h
+        src/chinacitydb.cpp
+    )
+
+    target_include_directories(chinacitydb_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(chinacitydb_tests PRIVATE Qt6::Core Qt6::Test)
+    add_test(NAME chinacitydb_tests COMMAND chinacitydb_tests)
+endif()
