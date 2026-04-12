@@ -1,3 +1,9 @@
+dde-shell-weather-plugin (1.6.1-1) unstable; urgency=medium
+
+  * Bump upstream version to 1.6.1.
+
+ -- HualetWang <mr.asianwang@gmail.com>  Sun, 12 Apr 2026 09:56:59 +0800
+
 dde-shell-weather-plugin (1.6.0-1) unstable; urgency=medium
 
   * Add KDE GeoIP (geoip.kde.org) as primary IP geolocation backend.
