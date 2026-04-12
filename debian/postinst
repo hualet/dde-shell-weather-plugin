@@ -1,0 +1,80 @@
+#!/bin/sh
+
+set -eu
+
+HELPER="/usr/libexec/dde-shell-weather-plugin/ds-weather-install-prompt"
+
+find_active_session()
+{
+    loginctl list-sessions --no-legend 2>/dev/null | while read -r sid _rest; do
+        [ -n "$sid" ] || continue
+
+        active=$(loginctl show-session "$sid" -p Active --value 2>/dev/null || true)
+        state=$(loginctl show-session "$sid" -p State --value 2>/dev/null || true)
+        remote=$(loginctl show-session "$sid" -p Remote --value 2>/dev/null || true)
+        session_type=$(loginctl show-session "$sid" -p Type --value 2>/dev/null || true)
+        user_name=$(loginctl show-session "$sid" -p Name --value 2>/dev/null || true)
+        user_id=$(loginctl show-session "$sid" -p User --value 2>/dev/null || true)
+
+        if [ -n "$user_id" ] && [ -z "$user_name" ]; then
+            user_name=$(id -nu "$user_id" 2>/dev/null || true)
+        fi
+        display=$(loginctl show-session "$sid" -p Display --value 2>/dev/null || true)
+
+        [ "$active" = "yes" ] || continue
+        [ "$state" = "active" ] || continue
+        [ "$remote" = "no" ] || continue
+        [ "$session_type" = "x11" ] || [ "$session_type" = "wayland" ] || continue
+        [ -n "$user_name" ] || continue
+        [ -n "$user_id" ] || continue
+
+        printf '%s\n%s\n%s\n%s\n' "$user_name" "$user_id" "$session_type" "$display"
+        return 0
+    done
+
+    return 1
+}
+
+if [ "$1" != "configure" ]; then
+    exit 0
+fi
+
+mode=install
+if [ -n "${2:-}" ]; then
+    mode=upgrade
+fi
+
+[ -x "$HELPER" ] || exit 0
+
+session=$(find_active_session || true)
+[ -n "$session" ] || exit 0
+
+user_name=$(printf '%s' "$session" | sed -n '1p')
+user_id=$(printf '%s' "$session" | sed -n '2p')
+session_type=$(printf '%s' "$session" | sed -n '3p')
+display=$(printf '%s' "$session" | sed -n '4p')
+
+runtime_dir="/run/user/$user_id"
+[ -d "$runtime_dir" ] || exit 0
+[ -S "$runtime_dir/bus" ] || exit 0
+
+command="XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus'"
+
+if [ -n "$display" ]; then
+    command="$command DISPLAY='$display'"
+fi
+
+if [ "$session_type" = "wayland" ]; then
+    for candidate in "$runtime_dir/wayland-0" "$runtime_dir/wayland-1"; do
+        if [ -S "$candidate" ]; then
+            command="$command WAYLAND_DISPLAY='$(basename "$candidate")'"
+            break
+        fi
+    done
+fi
+
+command="$command '$HELPER' --mode '$mode'"
+
+runuser -u "$user_name" -- sh -c "$command" >/dev/null 2>&1 &
+
+exit 0

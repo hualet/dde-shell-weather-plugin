@@ -64,6 +64,24 @@ set(DS_WEATHER_QML_FILES
 set(DS_WEATHER_SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weatherapplet.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weatherprovider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/installprompt.cpp
+)
+
+add_executable(ds-weather-install-prompt
+    src/installprompt.h
+    src/installprompt.cpp
+    src/installpromptmain.cpp
+)
+
+target_include_directories(ds-weather-install-prompt PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(ds-weather-install-prompt PRIVATE
+    Qt6::Core
+    Qt6::Widgets
+    Dtk6::Core
+    Dtk6::Widget
 )
 
 # Build the dde-shell package tree, but exclude VCS metadata from installation.
@@ -90,10 +108,42 @@ install(
     DESTINATION ${DDE_SHELL_PLUGIN_INSTALL_DIR}/
 )
 
+install(
+    TARGETS ds-weather-install-prompt
+    DESTINATION libexec/dde-shell-weather-plugin
+)
+
 include(CTest)
 option(DS_WEATHER_ENABLE_QML_TESTS
        "Build and register QML-dependent WeatherIcon tests"
        OFF)
+
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+
+    add_executable(installprompt_tests
+        tests/installprompt_test.cpp
+        src/installprompt.cpp
+        src/installprompt.h
+    )
+
+    target_include_directories(installprompt_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(installprompt_tests PRIVATE
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Test
+        Dtk6::Core
+        Dtk6::Widget
+    )
+
+    add_test(NAME installprompt_tests COMMAND installprompt_tests)
+    set_tests_properties(installprompt_tests PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+endif()
 
 if(BUILD_TESTING AND DS_WEATHER_ENABLE_QML_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Qml Test)

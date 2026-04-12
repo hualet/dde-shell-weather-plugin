@@ -308,6 +308,34 @@ Updated: %3</source>
     </message>
 </context>
 <context>
+    <name>InstallPrompt</name>
+    <message>
+        <location filename="../src/installprompt.cpp" line="33"/>
+        <source>Weather Plugin Notice</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="35"/>
+        <source>Restart Now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="37"/>
+        <source>Later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="43"/>
+        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you restart it now, the weather plugin will appear and begin updating.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="52"/>
+        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you restart it now, the taskbar will recover shortly.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>main</name>
     <message>
         <location filename="../package/main.qml" line="331"/>
