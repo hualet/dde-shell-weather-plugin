@@ -77,3 +77,6 @@ Thumbs.db
 # python 
 __pycache__/
 
+# code generation cache
+scripts/CN.txt
+
