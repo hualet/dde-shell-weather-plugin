@@ -310,6 +310,34 @@ Updated: %3</source>
     </message>
 </context>
 <context>
+    <name>InstallPrompt</name>
+    <message>
+        <location filename="../src/installprompt.cpp" line="64"/>
+        <source>Weather Plugin Notice</source>
+        <translation>天氣插件提示</translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="66"/>
+        <source>Reload Now</source>
+        <translation>立即重新載入</translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="67"/>
+        <source>Later</source>
+        <translation>稍後再說</translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="71"/>
+        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you reload it now, the weather plugin will appear and begin updating.</source>
+        <translation>天氣插件已安裝完成。要顯示天氣並保持自動更新，需要重新載入工作列。若現在重新載入，天氣插件會顯示在工作列中並開始更新天氣資訊。</translation>
+    </message>
+    <message>
+        <location filename="../src/installprompt.cpp" line="80"/>
+        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you reload it now, the taskbar will recover shortly.</source>
+        <translation>天氣插件已更新完成。要讓它繼續正常顯示並更新天氣資訊，需要重新載入工作列。若現在重新載入，工作列會很快恢復。</translation>
+    </message>
+</context>
+<context>
     <name>main</name>
     <message>
         <source>Location Settings</source>

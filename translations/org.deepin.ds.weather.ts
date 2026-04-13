@@ -315,8 +315,8 @@ Updated: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="35"/>
-        <source>Restart Now</source>
+        <location filename="../src/installprompt.cpp" line="66"/>
+        <source>Reload Now</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -325,13 +325,13 @@ Updated: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="43"/>
-        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you restart it now, the weather plugin will appear and begin updating.</source>
+        <location filename="../src/installprompt.cpp" line="71"/>
+        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you reload it now, the weather plugin will appear and begin updating.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="52"/>
-        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you restart it now, the taskbar will recover shortly.</source>
+        <location filename="../src/installprompt.cpp" line="80"/>
+        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you reload it now, the taskbar will recover shortly.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

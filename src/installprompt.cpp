@@ -63,7 +63,7 @@ InstallPrompt::dialogTextForMode (Mode mode)
   text.title
       = QCoreApplication::translate ("InstallPrompt", "Weather Plugin Notice");
   text.acceptLabel
-      = QCoreApplication::translate ("InstallPrompt", "Restart Now");
+      = QCoreApplication::translate ("InstallPrompt", "Reload Now");
   text.rejectLabel = QCoreApplication::translate ("InstallPrompt", "Later");
 
   if (mode == Mode::Install)
@@ -72,7 +72,7 @@ InstallPrompt::dialogTextForMode (Mode mode)
           "InstallPrompt",
           "The weather plugin has been installed. To show weather in the "
           "taskbar and keep it updating, the taskbar needs to be reloaded. "
-          "If you restart it now, the weather plugin will appear and begin "
+          "If you reload it now, the weather plugin will appear and begin "
           "updating.");
     }
   else
@@ -81,7 +81,7 @@ InstallPrompt::dialogTextForMode (Mode mode)
           "InstallPrompt",
           "The weather plugin has been updated. To keep it displayed and "
           "updating normally, the taskbar needs to be reloaded. If you "
-          "restart it now, the taskbar will recover shortly.");
+          "reload it now, the taskbar will recover shortly.");
     }
 
   return text;

@@ -317,9 +317,9 @@ Updated: %3</source>
         <translation>天气插件提示</translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="35"/>
-        <source>Restart Now</source>
-        <translation>立即重启</translation>
+        <location filename="../src/installprompt.cpp" line="66"/>
+        <source>Reload Now</source>
+        <translation>立即重新加载</translation>
     </message>
     <message>
         <location filename="../src/installprompt.cpp" line="37"/>
@@ -327,14 +327,14 @@ Updated: %3</source>
         <translation>稍后再说</translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="43"/>
-        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you restart it now, the weather plugin will appear and begin updating.</source>
-        <translation>天气插件已安装完成。天气信息显示和自动更新依赖任务栏重新加载。现在重启任务栏后，天气插件会显示在任务栏中，并开始更新天气信息。</translation>
+        <location filename="../src/installprompt.cpp" line="71"/>
+        <source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you reload it now, the weather plugin will appear and begin updating.</source>
+        <translation>天气插件已安装完成。天气信息显示和自动更新依赖任务栏重新加载。现在重新加载任务栏后，天气插件会显示在任务栏中，并开始更新天气信息。</translation>
     </message>
     <message>
-        <location filename="../src/installprompt.cpp" line="52"/>
-        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you restart it now, the taskbar will recover shortly.</source>
-        <translation>天气插件已更新完成。为了让天气插件继续正常显示并更新天气信息，需要重新加载任务栏。现在重启后，任务栏会很快自动恢复。</translation>
+        <location filename="../src/installprompt.cpp" line="80"/>
+        <source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you reload it now, the taskbar will recover shortly.</source>
+        <translation>天气插件已更新完成。为了让天气插件继续正常显示并更新天气信息，需要重新加载任务栏。现在重新加载后，任务栏会很快自动恢复。</translation>
     </message>
 </context>
 <context>
