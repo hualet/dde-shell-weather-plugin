@@ -10,8 +10,10 @@
 #include <QTranslator>
 
 #include <DApplication>
+#include <DGuiApplicationHelper>
 
 DWIDGET_USE_NAMESPACE
+DGUI_USE_NAMESPACE
 
 namespace
 {
@@ -25,6 +27,7 @@ main (int argc, char *argv[])
 {
   DApplication app (argc, argv);
   app.setApplicationName (QStringLiteral ("ds-weather-install-prompt"));
+  app.setOrganizationName (QStringLiteral ("deepin"));
 
   QTranslator qtTranslator;
   if (qtTranslator.load (QLocale (), QStringLiteral ("qtbase"),
@@ -54,6 +57,18 @@ main (int argc, char *argv[])
   if (!mode.has_value ())
     {
       return 2;
+    }
+
+  const std::optional<InstallPrompt::ThemePreference> themePreference
+      = InstallPrompt::themePreferenceFromEnvironment ();
+  if (themePreference.has_value ())
+    {
+      DGuiApplicationHelper::setAttribute (
+          DGuiApplicationHelper::DontSaveApplicationTheme, true);
+      DGuiApplicationHelper::instance ()->setPaletteType (
+          *themePreference == InstallPrompt::ThemePreference::Dark
+              ? DGuiApplicationHelper::DarkType
+              : DGuiApplicationHelper::LightType);
     }
 
   return InstallPrompt::run (*mode);

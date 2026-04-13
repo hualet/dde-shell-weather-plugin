@@ -4,6 +4,27 @@ set -eu
 
 HELPER="/usr/libexec/dde-shell-weather-plugin/ds-weather-install-prompt"
 
+shell_quote()
+{
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+append_env()
+{
+    command="$command $1=$(shell_quote "$2")"
+}
+
+read_session_env()
+{
+    pid="$1"
+    name="$2"
+
+    [ -n "$pid" ] || return 1
+    [ -r "/proc/$pid/environ" ] || return 1
+
+    tr '\0' '\n' < "/proc/$pid/environ" | sed -n "s/^${name}=//p" | head -n 1
+}
+
 find_active_session()
 {
     loginctl list-sessions --no-legend 2>/dev/null | while read -r sid _rest; do
@@ -15,6 +36,7 @@ find_active_session()
         session_type=$(loginctl show-session "$sid" -p Type --value 2>/dev/null || true)
         user_name=$(loginctl show-session "$sid" -p Name --value 2>/dev/null || true)
         user_id=$(loginctl show-session "$sid" -p User --value 2>/dev/null || true)
+        leader=$(loginctl show-session "$sid" -p Leader --value 2>/dev/null || true)
 
         if [ -n "$user_id" ] && [ -z "$user_name" ]; then
             user_name=$(id -nu "$user_id" 2>/dev/null || true)
@@ -28,7 +50,7 @@ find_active_session()
         [ -n "$user_name" ] || continue
         [ -n "$user_id" ] || continue
 
-        printf '%s\n%s\n%s\n%s\n' "$user_name" "$user_id" "$session_type" "$display"
+        printf '%s\n%s\n%s\n%s\n%s\n' "$user_name" "$user_id" "$session_type" "$display" "$leader"
         return 0
     done
 
@@ -53,27 +75,67 @@ user_name=$(printf '%s' "$session" | sed -n '1p')
 user_id=$(printf '%s' "$session" | sed -n '2p')
 session_type=$(printf '%s' "$session" | sed -n '3p')
 display=$(printf '%s' "$session" | sed -n '4p')
+leader=$(printf '%s' "$session" | sed -n '5p')
 
 runtime_dir="/run/user/$user_id"
 [ -d "$runtime_dir" ] || exit 0
 [ -S "$runtime_dir/bus" ] || exit 0
 
-command="XDG_RUNTIME_DIR='$runtime_dir' DBUS_SESSION_BUS_ADDRESS='unix:path=$runtime_dir/bus'"
+home_dir=$(getent passwd "$user_name" | cut -d: -f6)
+[ -n "$home_dir" ] || exit 0
+
+command=""
+append_env HOME "$home_dir"
+append_env USER "$user_name"
+append_env LOGNAME "$user_name"
+append_env XDG_RUNTIME_DIR "$runtime_dir"
+append_env DBUS_SESSION_BUS_ADDRESS "unix:path=$runtime_dir/bus"
 
 if [ -n "$display" ]; then
-    command="$command DISPLAY='$display'"
+    append_env DISPLAY "$display"
+fi
+
+for env_name in XDG_CURRENT_DESKTOP DESKTOP_SESSION QT_QPA_PLATFORMTHEME QT_STYLE_OVERRIDE LANG LANGUAGE LC_ALL LC_MESSAGES D_THEME_TYPE D_DXCB_THEME; do
+    env_value=$(read_session_env "$leader" "$env_name" || true)
+    if [ -n "$env_value" ]; then
+        append_env "$env_name" "$env_value"
+    fi
+done
+
+config_home=$(read_session_env "$leader" "XDG_CONFIG_HOME" || true)
+if [ -n "$config_home" ]; then
+    append_env XDG_CONFIG_HOME "$config_home"
+else
+    append_env XDG_CONFIG_HOME "$home_dir/.config"
+fi
+
+data_home=$(read_session_env "$leader" "XDG_DATA_HOME" || true)
+if [ -n "$data_home" ]; then
+    append_env XDG_DATA_HOME "$data_home"
+else
+    append_env XDG_DATA_HOME "$home_dir/.local/share"
+fi
+
+cache_home=$(read_session_env "$leader" "XDG_CACHE_HOME" || true)
+if [ -n "$cache_home" ]; then
+    append_env XDG_CACHE_HOME "$cache_home"
+else
+    append_env XDG_CACHE_HOME "$home_dir/.cache"
 fi
 
 if [ "$session_type" = "wayland" ]; then
+    append_env XDG_SESSION_TYPE "wayland"
     for candidate in "$runtime_dir/wayland-0" "$runtime_dir/wayland-1"; do
         if [ -S "$candidate" ]; then
-            command="$command WAYLAND_DISPLAY='$(basename "$candidate")'"
+            append_env WAYLAND_DISPLAY "$(basename "$candidate")"
             break
         fi
     done
+else
+    append_env XDG_SESSION_TYPE "$session_type"
 fi
 
-command="$command '$HELPER' --mode '$mode'"
+command="$command $(shell_quote "$HELPER") --mode $(shell_quote "$mode")"
 
 runuser -u "$user_name" -- sh -c "$command" >/dev/null 2>&1 &
 

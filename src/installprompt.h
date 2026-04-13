@@ -26,8 +26,15 @@ public:
     QString rejectLabel;
   };
 
+  enum class ThemePreference
+  {
+    Light,
+    Dark,
+  };
+
   static std::optional<Mode> parseMode (const QString &value);
   static DialogText dialogTextForMode (Mode mode);
+  static std::optional<ThemePreference> themePreferenceFromEnvironment ();
   static int run (Mode mode, QWidget *parent = nullptr);
 
 private:

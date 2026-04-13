@@ -3,6 +3,7 @@
 
 #include "installprompt.h"
 
+#include <QByteArray>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QLabel>
@@ -11,6 +12,32 @@
 #include <DDialog>
 
 DWIDGET_USE_NAMESPACE
+
+namespace
+{
+std::optional<InstallPrompt::ThemePreference>
+themePreferenceFromValue (QByteArray value)
+{
+  value = value.trimmed ().toLower ();
+
+  if (value.isEmpty ())
+    {
+      return std::nullopt;
+    }
+
+  if (value == "2" || value == "dark")
+    {
+      return InstallPrompt::ThemePreference::Dark;
+    }
+
+  if (value == "1" || value == "light")
+    {
+      return InstallPrompt::ThemePreference::Light;
+    }
+
+  return std::nullopt;
+}
+}
 
 std::optional<InstallPrompt::Mode>
 InstallPrompt::parseMode (const QString &value)
@@ -58,6 +85,19 @@ InstallPrompt::dialogTextForMode (Mode mode)
     }
 
   return text;
+}
+
+std::optional<InstallPrompt::ThemePreference>
+InstallPrompt::themePreferenceFromEnvironment ()
+{
+  const std::optional<ThemePreference> explicitTheme
+      = themePreferenceFromValue (qgetenv ("D_THEME_TYPE"));
+  if (explicitTheme.has_value ())
+    {
+      return explicitTheme;
+    }
+
+  return themePreferenceFromValue (qgetenv ("D_DXCB_THEME"));
 }
 
 int
