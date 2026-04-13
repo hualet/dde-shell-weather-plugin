@@ -1,3 +1,10 @@
+dde-shell-weather-plugin (1.6.3-1) unstable; urgency=medium
+
+  * Polish the install and update prompt dialog styling.
+  * Reset weather icon animations to the first frame before replaying.
+
+ -- HualetWang <mr.asianwang@gmail.com>  Mon, 13 Apr 2026 16:24:36 +0800
+
 dde-shell-weather-plugin (1.6.2-1) unstable; urgency=medium
 
   * Add an install-time DTK prompt that explains the weather plugin
