@@ -201,5 +201,18 @@ AnimatedSvgItem::stopAnimation ()
 {
   m_stopTimer->stop ();
   m_renderer->setAnimationEnabled (false);
+
+  if (m_renderer->animated () && !m_source.isEmpty ())
+    {
+      QString path = m_source;
+      if (path.startsWith ("qrc:"))
+        path = path.mid (3);
+      else if (path.startsWith ("file://"))
+        path = QUrl (m_source).toLocalFile ();
+
+      if (m_renderer->load (path))
+        m_visibleBounds = calculateVisibleBounds ();
+    }
+
   update ();
 }

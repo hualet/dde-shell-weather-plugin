@@ -35,6 +35,7 @@ private slots:
   void staticModeDisablesSvgAnimation ();
   void animatedSvgItemStopsAfterOneCycle ();
   void animatedSvgItemReplayRestartsAnimation ();
+  void animatedSvgItemStopResetsToFirstFrame ();
 };
 
 void
@@ -116,6 +117,24 @@ AnimatedSvgItemTest::animatedSvgItemReplayRestartsAnimation ()
   QVERIFY (renderer->isAnimationEnabled ());
   QTRY_VERIFY_WITH_TIMEOUT (!renderer->isAnimationEnabled (),
                             durationMs + 1500);
+}
+
+void
+AnimatedSvgItemTest::animatedSvgItemStopResetsToFirstFrame ()
+{
+  AnimatedSvgItem item;
+  item.setSource (sourceFileUrl ("package/icons/tropical-storm.svg"));
+
+  auto *renderer = item.findChild<QSvgRenderer *> ();
+  QVERIFY (renderer != nullptr);
+  QVERIFY (renderer->animated ());
+  QVERIFY (renderer->isAnimationEnabled ());
+
+  QTRY_VERIFY_WITH_TIMEOUT (renderer->currentFrame () > 0, 2000);
+
+  item.setAnimated (false);
+  QCOMPARE (renderer->currentFrame (), 0);
+  QVERIFY (!renderer->isAnimationEnabled ());
 }
 
 QTEST_MAIN (AnimatedSvgItemTest)
