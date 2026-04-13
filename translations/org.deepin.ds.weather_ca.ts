@@ -1,312 +1,313 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
+<?xml version='1.0' encoding='utf-8'?>
 <TS version="2.1" language="ca" sourcelanguage="en">
 <context>
     <name>LocationSettingsDialog</name>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="62"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="62" />
         <source>Weather Location Settings</source>
-        <translation type="unfinished"></translation>
+        <translation>Configuració d’ubicació del temps</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="63"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="63" />
         <source>Choose whether the weather applet follows your current location or stays fixed on a city.</source>
-        <translation type="unfinished"></translation>
+        <translation>Trieu si la miniaplicació del temps segueix la vostra ubicació actual o es manté fixada en una ciutat.</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="171"/>
-        <location filename="../src/locationsettingsdialog.cpp" line="196"/>
-        <location filename="../src/locationsettingsdialog.cpp" line="241"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="171" />
+        <location filename="../src/locationsettingsdialog.cpp" line="196" />
+        <location filename="../src/locationsettingsdialog.cpp" line="241" />
         <source>Locate</source>
-        <translation type="unfinished"></translation>
+        <translation>Localitza</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="177"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="177" />
         <source>Current city refreshed.</source>
-        <translation type="unfinished"></translation>
+        <translation>S’ha actualitzat la ciutat actual.</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="188"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="188" />
         <source>Current city filled in.</source>
-        <translation type="unfinished"></translation>
+        <translation>S’ha emplenat la ciutat actual.</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="228"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="228" />
         <source>Automatic location</source>
-        <translation type="unfinished"></translation>
+        <translation>Ubicació automàtica</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="229"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="229" />
         <source>Manual city</source>
-        <translation type="unfinished"></translation>
+        <translation>Ciutat manual</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="281"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="281" />
         <source>Mode</source>
-        <translation type="unfinished"></translation>
+        <translation>Mode</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="285"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="285" />
         <source>City</source>
-        <translation type="unfinished"></translation>
+        <translation>Ciutat</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="312"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="312" />
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Cancel·la</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="313"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="313" />
         <source>Save</source>
-        <translation type="unfinished"></translation>
+        <translation>Desa</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="372"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="372" />
         <source>Use the locate button to refresh the current city</source>
-        <translation type="unfinished"></translation>
+        <translation>Useu el botó Localitza per actualitzar la ciutat actual</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="376"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="376" />
         <source>Refresh the automatically detected city</source>
-        <translation type="unfinished"></translation>
+        <translation>Actualitza la ciutat detectada automàticament</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="384"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="384" />
         <source>Type a city name and choose a suggestion</source>
-        <translation type="unfinished"></translation>
+        <translation>Escriviu el nom d’una ciutat i trieu un suggeriment</translation>
     </message>
     <message>
-        <location filename="../src/locationsettingsdialog.cpp" line="474"/>
+        <location filename="../src/locationsettingsdialog.cpp" line="474" />
         <source>Locating...</source>
-        <translation type="unfinished"></translation>
+        <translation>S’està localitzant...</translation>
     </message>
 </context>
 <context>
     <name>WeatherProvider</name>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="293"/>
-        <location filename="../src/weatherprovider.cpp" line="1167"/>
+        <location filename="../src/weatherprovider.cpp" line="293" />
+        <location filename="../src/weatherprovider.cpp" line="1167" />
         <source>MET Norway</source>
-        <translation type="unfinished"></translation>
+        <translation>MET Noruega</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2396"/>
-        <location filename="../src/weatherprovider.cpp" line="2408"/>
+        <location filename="../src/weatherprovider.cpp" line="2396" />
+        <location filename="../src/weatherprovider.cpp" line="2408" />
         <source>Failed to get location</source>
-        <translation type="unfinished"></translation>
+        <translation>No s’ha pogut obtenir la ubicació</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="1174"/>
+        <location filename="../src/weatherprovider.cpp" line="1174" />
         <source>Open-Meteo</source>
-        <translation type="unfinished"></translation>
+        <translation>Open-Meteo</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="684"/>
+        <location filename="../src/weatherprovider.cpp" line="684" />
         <source>Location lookup already in progress</source>
-        <translation type="unfinished"></translation>
+        <translation>La cerca de la ubicació ja està en curs</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="1191"/>
+        <location filename="../src/weatherprovider.cpp" line="1191" />
         <source>Unexpected weather data response</source>
-        <translation type="unfinished"></translation>
+        <translation>Resposta inesperada de dades del temps</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="1246"/>
-        <location filename="../src/weatherprovider.cpp" line="1278"/>
-        <location filename="../src/weatherprovider.cpp" line="2046"/>
-        <location filename="../src/weatherprovider.cpp" line="2079"/>
-        <location filename="../src/weatherprovider.cpp" line="2148"/>
-        <location filename="../src/weatherprovider.cpp" line="2152"/>
-        <location filename="../src/weatherprovider.cpp" line="2236"/>
+        <location filename="../src/weatherprovider.cpp" line="1246" />
+        <location filename="../src/weatherprovider.cpp" line="1278" />
+        <location filename="../src/weatherprovider.cpp" line="2046" />
+        <location filename="../src/weatherprovider.cpp" line="2079" />
+        <location filename="../src/weatherprovider.cpp" line="2148" />
+        <location filename="../src/weatherprovider.cpp" line="2152" />
+        <location filename="../src/weatherprovider.cpp" line="2236" />
         <source>Unknown</source>
-        <translation type="unfinished"></translation>
+        <translation>Desconegut</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2028"/>
-        <location filename="../src/weatherprovider.cpp" line="2077"/>
+        <location filename="../src/weatherprovider.cpp" line="2028" />
+        <location filename="../src/weatherprovider.cpp" line="2077" />
         <source>Clear sky</source>
-        <translation type="unfinished"></translation>
+        <translation>Cel serè</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2030"/>
-        <location filename="../src/weatherprovider.cpp" line="2060"/>
+        <location filename="../src/weatherprovider.cpp" line="2030" />
+        <location filename="../src/weatherprovider.cpp" line="2060" />
         <source>Partly cloudy</source>
-        <translation type="unfinished"></translation>
+        <translation>Parcialment ennuvolat</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2032"/>
-        <location filename="../src/weatherprovider.cpp" line="2057"/>
+        <location filename="../src/weatherprovider.cpp" line="2032" />
+        <location filename="../src/weatherprovider.cpp" line="2057" />
         <source>Fog</source>
-        <translation type="unfinished"></translation>
+        <translation>Boira</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2034"/>
-        <location filename="../src/weatherprovider.cpp" line="2071"/>
+        <location filename="../src/weatherprovider.cpp" line="2034" />
+        <location filename="../src/weatherprovider.cpp" line="2071" />
         <source>Drizzle</source>
-        <translation type="unfinished"></translation>
+        <translation>Plugim</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2036"/>
-        <location filename="../src/weatherprovider.cpp" line="2073"/>
+        <location filename="../src/weatherprovider.cpp" line="2036" />
+        <location filename="../src/weatherprovider.cpp" line="2073" />
         <source>Rain</source>
-        <translation type="unfinished"></translation>
+        <translation>Pluja</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2038"/>
-        <location filename="../src/weatherprovider.cpp" line="2067"/>
+        <location filename="../src/weatherprovider.cpp" line="2038" />
+        <location filename="../src/weatherprovider.cpp" line="2067" />
         <source>Snow</source>
-        <translation type="unfinished"></translation>
+        <translation>Neu</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2040"/>
-        <location filename="../src/weatherprovider.cpp" line="2065"/>
+        <location filename="../src/weatherprovider.cpp" line="2040" />
+        <location filename="../src/weatherprovider.cpp" line="2065" />
         <source>Rain showers</source>
-        <translation type="unfinished"></translation>
+        <translation>Ruixats de pluja</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2042"/>
-        <location filename="../src/weatherprovider.cpp" line="2063"/>
+        <location filename="../src/weatherprovider.cpp" line="2042" />
+        <location filename="../src/weatherprovider.cpp" line="2063" />
         <source>Snow showers</source>
-        <translation type="unfinished"></translation>
+        <translation>Ruixats de neu</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2044"/>
-        <location filename="../src/weatherprovider.cpp" line="2055"/>
+        <location filename="../src/weatherprovider.cpp" line="2044" />
+        <location filename="../src/weatherprovider.cpp" line="2055" />
         <source>Thunderstorm</source>
-        <translation type="unfinished"></translation>
+        <translation>Tempesta elèctrica</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2069"/>
+        <location filename="../src/weatherprovider.cpp" line="2069" />
         <source>Sleet</source>
-        <translation type="unfinished"></translation>
+        <translation>Aiguaneu</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2075"/>
+        <location filename="../src/weatherprovider.cpp" line="2075" />
         <source>Cloudy</source>
-        <translation type="unfinished"></translation>
+        <translation>Ennuvolat</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="1784"/>
-        <location filename="../src/weatherprovider.cpp" line="2101"/>
+        <location filename="../src/weatherprovider.cpp" line="1784" />
+        <location filename="../src/weatherprovider.cpp" line="2101" />
         <source>%1%2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1%2</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2117"/>
+        <location filename="../src/weatherprovider.cpp" line="2117" />
         <source>%1/%2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1/%2</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2127"/>
+        <location filename="../src/weatherprovider.cpp" line="2127" />
         <source>%1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 %2</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2180"/>
+        <location filename="../src/weatherprovider.cpp" line="2180" />
         <source>Implemented</source>
-        <translation type="unfinished"></translation>
+        <translation>Implementat</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2182"/>
-        <location filename="../src/weatherprovider.cpp" line="2208"/>
+        <location filename="../src/weatherprovider.cpp" line="2182" />
+        <location filename="../src/weatherprovider.cpp" line="2208" />
         <source>Global</source>
-        <translation type="unfinished"></translation>
+        <translation>Global</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2184"/>
-        <location filename="../src/weatherprovider.cpp" line="2197"/>
+        <location filename="../src/weatherprovider.cpp" line="2184" />
+        <location filename="../src/weatherprovider.cpp" line="2197" />
         <source>User-Agent</source>
-        <translation type="unfinished"></translation>
+        <translation>User-Agent</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2185"/>
+        <location filename="../src/weatherprovider.cpp" line="2185" />
         <source>Best default choice: global coverage, no API key, forecast quality is high.</source>
-        <translation type="unfinished"></translation>
+        <translation>La millor opció predeterminada: cobertura global, sense clau API i amb alta qualitat de previsió.</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2193"/>
-        <location filename="../src/weatherprovider.cpp" line="2206"/>
-        <location filename="../src/weatherprovider.cpp" line="2219"/>
+        <location filename="../src/weatherprovider.cpp" line="2193" />
+        <location filename="../src/weatherprovider.cpp" line="2206" />
+        <location filename="../src/weatherprovider.cpp" line="2219" />
         <source>Candidate</source>
-        <translation type="unfinished"></translation>
+        <translation>Candidat</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2195"/>
+        <location filename="../src/weatherprovider.cpp" line="2195" />
         <source>United States</source>
-        <translation type="unfinished"></translation>
+        <translation>Estats Units</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2198"/>
+        <location filename="../src/weatherprovider.cpp" line="2198" />
         <source>High-quality official data, but only suitable for US locations.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dades oficials d’alta qualitat, però només adequades per a ubicacions dels Estats Units.</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2210"/>
+        <location filename="../src/weatherprovider.cpp" line="2210" />
         <source>API key</source>
-        <translation type="unfinished"></translation>
+        <translation>Clau API</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2211"/>
+        <location filename="../src/weatherprovider.cpp" line="2211" />
         <source>Global and mature, but setup cost is higher because an API key is required.</source>
-        <translation type="unfinished"></translation>
+        <translation>Global i madur, però el cost de configuració és més alt perquè cal una clau API.</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2221"/>
+        <location filename="../src/weatherprovider.cpp" line="2221" />
         <source>Station-based</source>
-        <translation type="unfinished"></translation>
+        <translation>Basat en estacions</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2223"/>
+        <location filename="../src/weatherprovider.cpp" line="2223" />
         <source>None</source>
-        <translation type="unfinished"></translation>
+        <translation>Cap</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2224"/>
+        <location filename="../src/weatherprovider.cpp" line="2224" />
         <source>Useful for current observations near airports, but weak for general forecast UX.</source>
-        <translation type="unfinished"></translation>
+        <translation>Útil per a observacions actuals prop dels aeroports, però limitat per a l’experiència general de previsió.</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2232"/>
+        <location filename="../src/weatherprovider.cpp" line="2232" />
         <source>Legacy</source>
-        <translation type="unfinished"></translation>
+        <translation>Heredat</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2234"/>
+        <location filename="../src/weatherprovider.cpp" line="2234" />
         <source>Legacy US feeds</source>
-        <translation type="unfinished"></translation>
+        <translation>Fonts heretades dels EUA</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2237"/>
+        <location filename="../src/weatherprovider.cpp" line="2237" />
         <source>Legacy source kept for compatibility in libgweather, not a good new integration target.</source>
-        <translation type="unfinished"></translation>
+        <translation>Font heretada mantinguda per compatibilitat a libgweather; no és una bona opció per a noves integracions.</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2137"/>
+        <location filename="../src/weatherprovider.cpp" line="2137" />
         <source>Unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>No disponible</translation>
     </message>
     <message>
-        <location filename="../src/weatherprovider.cpp" line="2155"/>
+        <location filename="../src/weatherprovider.cpp" line="2155" />
         <source>Location: %1
 Weather: %2
 Updated: %3</source>
-        <translation type="unfinished"></translation>
+        <translation>Ubicació: %1
+Temps: %2
+Actualitzat: %3</translation>
     </message>
 </context>
-<context>
+<context><name>InstallPrompt</name><message><location filename="../src/installprompt.cpp" line="64" /><source>Weather Plugin Notice</source><translation>Avís del connector del temps</translation></message><message><location filename="../src/installprompt.cpp" line="66" /><source>Reload Now</source><translation>Recarrega ara</translation></message><message><location filename="../src/installprompt.cpp" line="67" /><source>Later</source><translation>Més tard</translation></message><message><location filename="../src/installprompt.cpp" line="71" /><source>The weather plugin has been installed. To show weather in the taskbar and keep it updating, the taskbar needs to be reloaded. If you reload it now, the weather plugin will appear and begin updating.</source><translation>El connector del temps s’ha instal·lat. Per mostrar el temps a la barra de tasques i mantenir-lo actualitzat, cal tornar a carregar la barra de tasques. Si la recarregueu ara, el connector del temps apareixerà i començarà a actualitzar-se.</translation></message><message><location filename="../src/installprompt.cpp" line="80" /><source>The weather plugin has been updated. To keep it displayed and updating normally, the taskbar needs to be reloaded. If you reload it now, the taskbar will recover shortly.</source><translation>El connector del temps s’ha actualitzat. Per mantenir-lo visible i actualitzant-se amb normalitat, cal tornar a carregar la barra de tasques. Si la recarregueu ara, la barra de tasques es recuperarà aviat.</translation></message></context><context>
     <name>main</name>
     <message>
-        <location filename="../package/main.qml" line="331"/>
+        <location filename="../package/main.qml" line="331" />
         <source>Now</source>
         <translation>Ara</translation>
     </message>
     <message>
-        <location filename="../package/main.qml" line="536"/>
+        <location filename="../package/main.qml" line="536" />
         <source>Refresh</source>
         <translation>Actualitza</translation>
     </message>
     <message>
-        <location filename="../package/main.qml" line="545"/>
+        <location filename="../package/main.qml" line="545" />
         <source>Settings</source>
         <translation>Configuració</translation>
     </message>
