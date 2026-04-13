@@ -143,6 +143,11 @@ if(BUILD_TESTING)
     set_tests_properties(installprompt_tests PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
+
+    add_test(
+        NAME postinst_env_tests
+        COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/postinst_env_test.sh
+    )
 endif()
 
 if(BUILD_TESTING AND DS_WEATHER_ENABLE_QML_TESTS)

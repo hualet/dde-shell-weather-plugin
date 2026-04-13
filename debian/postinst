@@ -14,6 +14,21 @@ append_env()
     command="$command $1=$(shell_quote "$2")"
 }
 
+qt_qpa_platform_for_session_type()
+{
+    case "${1:-}" in
+        x11)
+            printf '%s\n' "dxcb:xcb"
+            ;;
+        wayland)
+            printf '%s\n' "wayland"
+            ;;
+        *)
+            printf '\n'
+            ;;
+    esac
+}
+
 read_session_env()
 {
     pid="$1"
@@ -56,6 +71,10 @@ find_active_session()
 
     return 1
 }
+
+if [ "${DEBIAN_POSTINST_SOURCE_ONLY:-0}" = "1" ]; then
+    return 0
+fi
 
 if [ "$1" != "configure" ]; then
     exit 0
@@ -125,6 +144,7 @@ fi
 
 if [ "$session_type" = "wayland" ]; then
     append_env XDG_SESSION_TYPE "wayland"
+    append_env QT_QPA_PLATFORM "$(qt_qpa_platform_for_session_type "$session_type")"
     for candidate in "$runtime_dir/wayland-0" "$runtime_dir/wayland-1"; do
         if [ -S "$candidate" ]; then
             append_env WAYLAND_DISPLAY "$(basename "$candidate")"
@@ -133,6 +153,10 @@ if [ "$session_type" = "wayland" ]; then
     done
 else
     append_env XDG_SESSION_TYPE "$session_type"
+    qpa_platform=$(qt_qpa_platform_for_session_type "$session_type")
+    if [ -n "$qpa_platform" ]; then
+        append_env QT_QPA_PLATFORM "$qpa_platform"
+    fi
 fi
 
 command="$command $(shell_quote "$HELPER") --mode $(shell_quote "$mode")"
