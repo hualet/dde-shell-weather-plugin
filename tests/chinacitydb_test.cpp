@@ -58,14 +58,16 @@ ChinaCityDbTest::districtLevelYongzhouEntriesAreSearchable ()
       return;
     }
 
-  QFAIL (qPrintable (QStringLiteral ("Missing expected result for query '%1': %2")
-                         .arg (query, expectedName)));
+  QFAIL (
+      qPrintable (QStringLiteral ("Missing expected result for query '%1': %2")
+                      .arg (query, expectedName)));
 }
 
 void
 ChinaCityDbTest::duplicateDistrictNamesRemainSearchable ()
 {
-  const QVariantList results = ChinaCityDb::search (QStringLiteral ("长安区"), 8);
+  const QVariantList results
+      = ChinaCityDb::search (QStringLiteral ("长安区"), 8);
 
   QSet<QString> matches;
   for (const QVariant &resultValue : results)
@@ -74,7 +76,8 @@ ChinaCityDbTest::duplicateDistrictNamesRemainSearchable ()
       if (result.value (QStringLiteral ("shortName")).toString ()
           == QStringLiteral ("长安区"))
         {
-          matches.insert (result.value (QStringLiteral ("displayName")).toString ());
+          matches.insert (
+              result.value (QStringLiteral ("displayName")).toString ());
         }
     }
 

@@ -7,9 +7,9 @@
 #include "pluginfactory.h"
 #include <QDebug>
 #include <QHash>
+#include <QQmlEngine>
 #include <QSettings>
 #include <QVariantMap>
-#include <QQmlEngine>
 
 namespace
 {
@@ -32,7 +32,7 @@ WeatherApplet::~WeatherApplet () { qDebug () << "WeatherApplet destroyed"; }
 bool
 WeatherApplet::init ()
 {
-  qmlRegisterType<AnimatedSvgItem>("org.deepin.ds.weather", 1, 0,
+  qmlRegisterType<AnimatedSvgItem> ("org.deepin.ds.weather", 1, 0,
                                     "AnimatedSvgItem");
 
   m_weatherProvider = new WeatherProvider (this);
