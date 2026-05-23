@@ -2666,8 +2666,11 @@ WeatherProvider::tooltipText () const
             ? tr ("Unknown")
             : m_weatherData.weatherDescription.trimmed ();
 
-  return tr ("Location: %1\nWeather: %2\nUpdated: %3")
-      .arg (displayCity, displayDescription, formattedUpdatedAt ());
+  const QString displayTemperatureRange = formattedTemperatureRange ();
+
+  return tr ("Location: %1\nWeather: %2  %3\nUpdated: %4")
+      .arg (displayCity, displayDescription, displayTemperatureRange,
+            formattedUpdatedAt ());
 }
 
 QString

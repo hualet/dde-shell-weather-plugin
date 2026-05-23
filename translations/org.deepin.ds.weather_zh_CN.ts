@@ -302,11 +302,11 @@
     <message>
         <location filename="../src/weatherprovider.cpp" line="2155"/>
         <source>Location: %1
-Weather: %2
-Updated: %3</source>
+Weather: %2  %3
+Updated: %4</source>
         <translation>地区：%1
-天气：%2
-更新时间：%3</translation>
+天气：%2  %3
+更新时间：%4</translation>
     </message>
 </context>
 <context>

@@ -446,14 +446,16 @@ AppletItem {
                                                            - horizontalPadding
                                                            - iconSlot.width
                                                            - contentSpacing)
-        implicitWidth: horizontalPadding + iconSlot.width + contentSpacing
-                       + textColumn.implicitWidth
+        implicitWidth: root.useColumnLayout ? root.dockSize
+                                            : horizontalPadding + iconSlot.width
+                                              + contentSpacing + textColumn.implicitWidth
         
         // Left: Weather icon
         Item {
             id: iconSlot
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            visible: !root.useColumnLayout
             width: Math.max(20, dockSize - 26)
             height: parent.height
 
@@ -478,6 +480,7 @@ AppletItem {
             // relying on RowLayout spacing against the icon canvas width.
             anchors.leftMargin: weatherSummary.contentSpacing
             anchors.verticalCenter: parent.verticalCenter
+            visible: !root.useColumnLayout
             spacing: 0
             
             // Row 1: Location + High/Low temp
@@ -535,6 +538,42 @@ AppletItem {
                     elide: Text.ElideRight
                     visible: text.length > 0
                 }
+            }
+        }
+
+        // Vertical dock: compact icon + current temperature.
+        Column {
+            id: verticalSummary
+            anchors.fill: parent
+            visible: root.useColumnLayout
+            spacing: 2
+
+            Item {
+                width: parent.width
+                height: Math.max(0, parent.height - verticalTempLabel.implicitHeight
+                                     - verticalSummary.spacing)
+
+                WeatherIcon {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.height, parent.width)
+                    height: width
+                    weatherCode: Applet.weather.weatherCode
+                    iconNameOverride: Applet.weather.iconName
+                    animationTrigger: Applet.weather.updateSerial
+                    iconColor: themeColors.icon
+                    loading: Applet.weather.isLoading
+                }
+            }
+
+            Text {
+                id: verticalTempLabel
+                width: parent.width
+                text: Applet.weather.formattedTemperature
+                font.pixelSize: 10
+                font.bold: true
+                color: themeColors.primaryText
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
             }
         }
     }
